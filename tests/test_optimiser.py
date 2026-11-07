@@ -1,5 +1,6 @@
 """Checks for the optimiser's forecast table, appliances, EV charging and battery."""
 
+import json
 import unittest
 
 import pandas as pd
@@ -303,6 +304,35 @@ class PlanBatteryTests(unittest.TestCase):
             optimiser.plan_battery(forecast([10, 20]), load([1, 1]), **{**IDEAL, "initial_kwh": 5})
         with self.assertRaises(ValueError):
             optimiser.plan_battery(forecast([10, 20]), load([1, 1]), **{**IDEAL, "round_trip_eff": 0})
+
+
+class ToDictTests(unittest.TestCase):
+    MOCK_KEYS = {"appliance", "start", "end", "cost_gbp", "co2_kg", "run_now",
+                 "saving_gbp", "saving_co2_kg"}  # Fields of the /api/recommend mock
+
+    def test_appliance_plan_matches_the_api_shape(self):
+        plan = optimiser.plan_appliance(forecast([30, 30, 20, 10, 10, 25]), TWO_SLOT_KETTLE, START, LATE)
+        result = json.loads(json.dumps(plan.to_dict()))
+        self.assertLessEqual(self.MOCK_KEYS, set(result))
+        self.assertEqual(result["start"], "2026-11-07T01:30:00Z")
+        self.assertEqual(result["end"], "2026-11-07T02:30:00Z")
+        self.assertEqual(result["run_now"], {"start": "2026-11-07T00:00:00Z", "cost_gbp": 0.6, "co2_kg": 0.2})
+        self.assertEqual(result["saving_gbp"], 0.4)
+
+    def test_ev_plan_lists_each_charging_block(self):
+        plan = optimiser.plan_ev(forecast([30, 5, 30, 5]), 5, START, LATE, power_kw=7)
+        result = json.loads(json.dumps(plan.to_dict()))
+        self.assertEqual(len(result["blocks"]), 2)
+        self.assertEqual(result["energy_kwh"], 5.0)
+        self.assertEqual(result["run_now"]["start"], "2026-11-07T00:00:00Z")
+
+    def test_battery_plan_is_json_ready(self):
+        plan = optimiser.plan_battery(forecast([10, 10, 50, 50]), load([1, 1, 1, 1]), **IDEAL)
+        result = json.loads(json.dumps(plan.to_dict()))
+        self.assertEqual(result["next_action"], "charge")
+        self.assertEqual(result["saving_gbp"], 0.8)
+        self.assertEqual(len(result["schedule"]), 4)
+        self.assertEqual(result["schedule"][2]["discharge_kwh"], 1.0)
 
 
 if __name__ == "__main__":

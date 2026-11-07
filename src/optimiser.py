@@ -135,6 +135,7 @@ class Plan:
     uses_forecast: bool  # True if any slot's price is a forecast, not published
     alternatives: list = field(default_factory=list)  # Next best non-overlapping plans
     slot_energy_kwh: list = field(default_factory=list)  # Energy used in each of `slots`
+    run_now_start_utc: pd.Timestamp | None = None
 
     def blocks(self):
         """Group the slots into continuous (start, end) runs, in UTC."""
@@ -162,6 +163,31 @@ class Plan:
     @property
     def saving_co2_kg(self):
         return self.run_now_co2_kg - self.co2_kg
+
+    def to_dict(self):
+        """JSON-ready summary in the /api/recommend shape. Times are UTC ISO strings."""
+        return {
+            "appliance": self.appliance,
+            "start": _iso(self.start_utc),
+            "end": _iso(self.end_utc),
+            "blocks": [{"start": _iso(a), "end": _iso(b)} for a, b in self.blocks()],
+            "energy_kwh": round(sum(self.slot_energy_kwh), 3),
+            "cost_gbp": round(self.cost_p / 100, 2),
+            "co2_kg": round(self.co2_kg, 3),
+            "run_now": {
+                "start": _iso(self.run_now_start_utc),
+                "cost_gbp": round(self.run_now_cost_p / 100, 2),
+                "co2_kg": round(self.run_now_co2_kg, 3),
+            },
+            "saving_gbp": round(self.saving_p / 100, 2),
+            "saving_co2_kg": round(self.saving_co2_kg, 3),
+            "uses_forecast": self.uses_forecast,
+            "alternatives": [alt.to_dict() for alt in self.alternatives],
+        }
+
+
+def _iso(when):
+    return None if when is None else when.tz_convert("UTC").strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
 def _utc(when, name):
@@ -233,6 +259,7 @@ def plan_appliance(forecast, appliance, earliest_utc, deadline_utc,
             run_now_co2_kg=float(co2[run_now]),
             uses_forecast=not bool(windows.at[start, "published"]),
             slot_energy_kwh=[energy] * slots,
+            run_now_start_utc=run_now,
         )
 
     best = make_plan(ranked[0])
@@ -326,6 +353,7 @@ def plan_ev(forecast, energy_kwh, earliest_utc, deadline_utc, power_kw=None,
         run_now_co2_kg=now_co2,
         uses_forecast=not bool(usable.loc[slots, "price_published"].all()),
         slot_energy_kwh=[chosen_energy[slot] for slot in slots],
+        run_now_start_utc=run_now[0],
     )
 
 
@@ -358,6 +386,22 @@ class BatteryPlan:
         if first["charge_kwh"] > 1e-6:
             return "charge"
         return "discharge" if first["discharge_kwh"] > 1e-6 else "hold"
+
+    def to_dict(self):
+        """JSON-ready summary with the per-slot schedule. Times are UTC ISO strings."""
+        return {
+            "next_action": self.next_action,
+            "cost_without_gbp": round(self.cost_without_p / 100, 2),
+            "cost_with_gbp": round(self.cost_with_p / 100, 2),
+            "degradation_gbp": round(self.degradation_p / 100, 2),
+            "saving_gbp": round(self.saving_p / 100, 2),
+            "saving_co2_kg": round(self.saving_co2_kg, 3),
+            "uses_forecast": self.uses_forecast,
+            "schedule": [
+                {"time": _iso(time), **{key: round(float(value), 3) for key, value in row.items()}}
+                for time, row in self.schedule.iterrows()
+            ],
+        }
 
 
 def typical_load(index):

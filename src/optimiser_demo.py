@@ -1,9 +1,16 @@
-"""Show the optimiser's input table built from today's published data.
+"""Try the Step 7 optimiser on today's published prices.
 
-Run with `python -m src.optimiser_demo`. Add `--offline` to skip the APIs.
+    python -m src.optimiser_demo                  # overview of every appliance
+    python -m src.optimiser_demo --appliance dishwasher --finish-by 07:00
+    python -m src.optimiser_demo --appliance ev --ev-kwh 20 --carbon-weight 1
+    python -m src.optimiser_demo --appliance battery --json
+
+Add --offline to use saved data instead of the live APIs.
 """
 
 import argparse
+import json
+import sys
 from datetime import UTC, datetime, timedelta
 
 import pandas as pd
@@ -11,6 +18,11 @@ import pandas as pd
 import config
 from src import data, optimiser
 from src.check_data import load_sample
+
+
+def log(message):
+    """Status lines go to stderr so --json output stays clean."""
+    print(message, file=sys.stderr)
 
 
 def load_live(now):
@@ -28,26 +40,108 @@ def load_cached():
     if not agile or not carbon:
         raise optimiser.ForecastError("No saved Agile or carbon data to fall back on.")
     retrieved = agile[0]["retrieved_at_utc"]
-    print(f"Using saved data from {agile_path.parent.name}/, retrieved {retrieved}.")
+    log(f"Using saved data from {agile_path.parent.name}/, retrieved {retrieved}.")
     return optimiser.make_forecast_from_published(agile, carbon)
 
 
-def main() -> int:
-    parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--offline", action="store_true", help="Use only saved data.")
-    args = parser.parse_args()
-
-    forecast = None
-    if not args.offline:
+def load_forecast(offline):
+    """Live published data, falling back to the saved sample if anything fails."""
+    if not offline:
         try:
             forecast = load_live(datetime.now(UTC))
-            print("[LIVE] Published Agile prices and the NESO GB carbon forecast.")
+            log("[LIVE] Published Agile prices and the NESO GB carbon forecast.")
+            return forecast
         except (data.DataFetchError, optimiser.ForecastError, KeyError) as exc:
-            print(f"Live data failed — {exc}")
-    if forecast is None:
-        forecast = load_cached()
-        print("[CACHED] These slots are in the past, so they only demonstrate the format.")
+            log(f"Live data failed — {exc}")
+    forecast = load_cached()
+    log("[CACHED] These slots are in the past, so they only demonstrate the format.")
+    return forecast
 
+
+def main() -> int:
+    parser = argparse.ArgumentParser(
+        description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
+    )
+    parser.add_argument("--offline", action="store_true", help="use only saved data")
+    parser.add_argument("--appliance", choices=[*config.APPLIANCES, "ev", "battery"],
+                        help="recommend for one appliance instead of the overview")
+    parser.add_argument("--finish-by", metavar="HH:MM",
+                        help="London-time deadline, the next time it comes round (default: end of data)")
+    parser.add_argument("--carbon-weight", type=float, default=0.5,
+                        help="0 = cheapest, 1 = greenest (default 0.5)")
+    parser.add_argument("--risk", type=float, default=0.5,
+                        help="risk aversion, 0 = trust the median forecast (default 0.5)")
+    parser.add_argument("--ev-kwh", type=float, default=30.0, help="energy the EV needs (default 30)")
+    parser.add_argument("--json", action="store_true", help="print the plan as API-ready JSON")
+    args = parser.parse_args()
+
+    forecast = load_forecast(args.offline)
+    if args.appliance:
+        return recommend(forecast, args)
+    show_overview(forecast)
+    show_appliance_plans(forecast)
+    show_ev_plan(forecast)
+    show_battery_plan(forecast)
+    return 0
+
+
+def _next_local(after, hhmm):
+    """The next London-time HH:MM strictly after `after`, as UTC."""
+    hour, minute = (int(part) for part in hhmm.split(":"))
+    local = after.tz_convert(config.UK_TIMEZONE).to_pydatetime()
+    target = local.replace(hour=hour, minute=minute, second=0, microsecond=0)
+    if target <= local:
+        # Step a day then reset the clock time, so it stays HH:MM across clock changes.
+        target = (target + timedelta(days=1)).replace(hour=hour, minute=minute)
+    return pd.Timestamp(target).tz_convert("UTC")
+
+
+def recommend(forecast, args):
+    """Print one recommendation, like the app's recommendation card."""
+    earliest = forecast.index[0]
+    end_of_data = forecast.index[-1] + optimiser.SLOT
+    deadline = _next_local(earliest, args.finish_by) if args.finish_by else end_of_data
+    weights = {"carbon_weight": args.carbon_weight, "risk_aversion": args.risk}
+    try:
+        if args.appliance == "battery":
+            plan = optimiser.plan_battery(forecast, **weights)
+        elif args.appliance == "ev":
+            plan = optimiser.plan_ev(forecast, args.ev_kwh, earliest, deadline, **weights)
+        else:
+            appliance = optimiser.get_appliance(args.appliance)
+            plan = optimiser.plan_appliance(forecast, appliance, earliest, deadline, **weights)
+    except (optimiser.InfeasibleError, ValueError) as exc:
+        log(f"Not possible: {exc}")
+        return 1
+
+    if args.json:
+        print(json.dumps(plan.to_dict(), indent=2))
+        return 0
+
+    if args.appliance == "battery":
+        s = plan.schedule
+        print(f"\nBattery: {plan.next_action} now.")
+        print(f"  Charge {_periods(s['charge_kwh'] > 1e-6)}")
+        print(f"  Use battery {_periods(s['discharge_kwh'] > 1e-6)}")
+        versus = "no battery"
+    elif args.appliance == "ev":
+        blocks = ", ".join(_span(start, end) for start, end in plan.blocks())
+        print(f"\nCharge your EV ({args.ev_kwh:g} kWh) during {blocks}.")
+        versus = "charging now"
+    else:
+        finish = plan.end_utc.tz_convert(config.UK_TIMEZONE)
+        print(f"\nRun your {plan.appliance.lower()} at {_local(plan.start_utc)} (finishes {finish:%H:%M}).")
+        for alt in plan.alternatives:
+            print(f"  Also good: {_local(alt.start_utc)}, {_versus_now(alt.saving_p / 100, 'GBP', 2)}")
+        versus = "running now"
+    print(f"  Compared with {versus}: {_versus_now(plan.saving_p / 100, 'GBP', 2)}, "
+          f"{_versus_now(plan.saving_co2_kg, 'kg CO2', 2)}.")
+    if plan.uses_forecast:
+        print("  Uses forecast prices that Octopus has not published yet.")
+    return 0
+
+
+def show_overview(forecast):
     london = forecast.tz_convert(config.UK_TIMEZONE)
     first, last = london.index[0], london.index[-1] + optimiser.SLOT
     print(f"\n{len(forecast)} half-hour slots, {first:%a %d %b %H:%M} to {last:%a %d %b %H:%M} London time.")
@@ -68,11 +162,6 @@ def main() -> int:
             f"\n{column.split('_')[0].title()}: lowest {london[column].min():g} {unit} at {low:%a %H:%M}, "
             f"highest {london[column].max():g} {unit} at {high:%a %H:%M}."
         )
-
-    show_appliance_plans(forecast)
-    show_ev_plan(forecast)
-    show_battery_plan(forecast)
-    return 0
 
 
 def _periods(active):
@@ -135,11 +224,7 @@ def _versus_now(saving, unit, places):
 def show_ev_plan(forecast, energy_kwh=30.0):
     """Charge an EV by 07:00 the next morning, London time, if the data reaches it."""
     earliest = forecast.index[0]
-    local = earliest.tz_convert(config.UK_TIMEZONE).to_pydatetime()
-    seven = local.replace(hour=7, minute=0)
-    if seven <= local:
-        seven = (seven + timedelta(days=1)).replace(hour=7)  # Keeps 07:00 across clock changes
-    deadline = min(pd.Timestamp(seven).tz_convert("UTC"), forecast.index[-1] + optimiser.SLOT)
+    deadline = min(_next_local(earliest, "07:00"), forecast.index[-1] + optimiser.SLOT)
     print(f"\nEV charging: {energy_kwh:g} kWh at {config.EV_CHARGER_KW:g} kW by {_local(deadline)}")
     try:
         for label, weight in (("Cheapest", 0.0), ("Greenest", 1.0)):

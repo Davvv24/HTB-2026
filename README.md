@@ -24,6 +24,34 @@ python -m src.check_data
 
 The full dependency list for the project is in `requirements.txt`. Live checks use public endpoints without credentials. Each successful check saves a CSV under `data/cache/`. A failed or empty response uses that check’s latest local CSV, then the bundled sample. The output shows `[LIVE]` or `[CACHED]` and the UTC retrieval time. An unavailable source with no saved sample prints `[UNAVAILABLE]` and causes a nonzero exit. Some live requests timed out during verification and worked on a subsequent call.
 
+## Run Step 7: optimiser
+
+`src/optimiser.py` turns a forecast into a schedule. It needs no trained model: until Step 5 lands, it runs on Octopus's published Agile prices and the official NESO GB carbon forecast.
+
+```bash
+python -m src.optimiser_demo                                      # every appliance, EV and battery
+python -m src.optimiser_demo --appliance dishwasher --finish-by 07:00
+python -m src.optimiser_demo --appliance ev --ev-kwh 20 --carbon-weight 1
+python -m src.optimiser_demo --appliance battery --json           # API-ready JSON
+python -m unittest discover -s tests -v
+```
+
+Add `--offline` to use the saved 3–5 November sample. `--carbon-weight` runs from 0 (cheapest) to 1 (greenest) and `--risk` sets risk aversion.
+
+| Function | What it decides |
+| --- | --- |
+| `plan_appliance` | The best uninterrupted window for a washing machine, dishwasher or tumble dryer before a deadline, with two non-overlapping alternatives. |
+| `plan_ev` | The best half-hours to deliver the energy an EV needs. Charging can pause. |
+| `plan_battery` | Charge, discharge or hold for every half-hour, solved as a linear programme with SciPy. |
+
+**Forecast table.** Every planner takes a DataFrame indexed by `time_utc` (consecutive UTC half-hour starts) with `price_p10`, `price_p50`, `price_p90` in p/kWh including VAT, `carbon_p10`, `carbon_p50`, `carbon_p90` in gCO2/kWh, and `price_published`. Published prices have p10 = p50 = p90. Step 5 models should produce this table.
+
+**Scoring.** Cost and carbon use the median (p50). Each candidate's cost and carbon are rescaled to 0–1 across the feasible options and blended by `carbon_weight`. `risk_aversion` moves the plan from the median towards the p90 band, so uncertain slots lose out; published prices are never penalised. Ties go to the earliest start, so a flat forecast recommends running now. Savings are measured against starting at the earliest slot.
+
+**Battery.** Variables per slot are grid charge `c`, discharge to the home `d` and stored energy `s`. It minimises `Σ buy·c − sell·d + wear·(c + d)` subject to `s_t = s_(t−1) + η·c − d/η` with `η = √(round-trip efficiency)`, `0 ≤ s ≤ capacity`, `c, d ≤ power × 0.5 h`, `d ≤ household load` (no export) and a final charge at least equal to the starting charge. With risk aversion, charging is valued on the upper band and discharging on the lower band. Re-plan by calling it again with the current charge and act on the first slot.
+
+**Assumptions in `config.py`.** Appliance power and run times, a 7 kW EV charger, a 10 kWh / 5 kW battery with 90% round-trip efficiency and 2p/kWh wear, and an 8.6 kWh-a-day household profile. These are typical values, not measurements.
+
 ## Data checked
 
 The recent sample spans 3–5 November 2026 UTC. The weather archive sample spans 27–29 October to allow for reanalysis latency. Open-Meteo checks use four representative points configured in `config.py`. Weather is hourly, with wind speeds in m/s, temperature in °C, cloud cover in percent and shortwave radiation in W/m².

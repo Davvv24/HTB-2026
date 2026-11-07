@@ -149,3 +149,33 @@
 
 .primary:disabled { opacity: 0.7; cursor: wait; }
 .for-line { color: var(--muted); font-size: 0.9rem; }
+
+
+/* Run now vs wait */
+.secondary {
+  justify-self: start;
+  padding: 8px 12px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--surface);
+  color: var(--ink);
+  cursor: pointer;
+}
+
+.compare {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+.compare > div {
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+}
+.compare .compare-best {
+  border-color: var(--green);
+  background: rgba(26, 127, 75, 0.06);
+}
+.compare-label { color: var(--muted); font-size: 0.85rem; }
+.compare-value { font-size: 1.5rem; font-weight: 700; }
+.compare-sub { color: var(--muted); }

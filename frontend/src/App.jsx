@@ -215,6 +215,18 @@ function App() {
                     ? `Prices after ${ukTime(confirmedUntil)} aren't out yet, so this plan uses our forecast for them.`
                     : 'This plan uses our price forecast.'}
               </p>
+              <div className="compare">
+                <div>
+                  <p className="compare-label">Start straight away ({ukTime(rec.run_now.start)})</p>
+                  <p className="compare-value">£{rec.run_now.cost_gbp.toFixed(2)}</p>
+                  <p className="compare-sub">{rec.run_now.co2_kg.toFixed(2)} kg CO₂</p>
+                </div>
+                <div className="compare-best">
+                  <p className="compare-label">Wait until {ukTime(rec.start)}</p>
+                  <p className="compare-value">£{rec.cost_gbp.toFixed(2)}</p>
+                  <p className="compare-sub">{rec.co2_kg.toFixed(2)} kg CO₂</p>
+                </div>
+              </div>
               {rec.why && (
                 <details className="why">
                   <summary>Why this time?</summary>

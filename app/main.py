@@ -21,6 +21,14 @@ MIX_SOURCES = ["wind", "gas", "nuclear", "solar", "biomass", "hydro", "imports",
 def iso(ts):
     return ts.strftime("%Y-%m-%dT%H:%M:%SZ")
 
+def published_until(issued_at):
+    """Agile prices cover 23:00-23:00 UK time and are published around 16:00
+    the day before. Returns when the confirmed prices end, as seen at `issued_at`."""
+    local = issued_at.tz_convert(config.UK_TIMEZONE)
+    cutoff = local.normalize().replace(hour=23)  # 23:00 today, UK time
+    if local.hour >= 16:
+        cutoff += pd.Timedelta(days=1)           # tomorrow's prices are out too
+    return cutoff.tz_convert("UTC")
 
 def load_latest_forecast():
     """Latest saved model forecast from Step 8: a historical replay, not live.
@@ -31,7 +39,15 @@ def load_latest_forecast():
     issued_at = forecasts.forecast_at_utc.max()
     table = (forecasts.loc[forecasts.forecast_at_utc == issued_at]
              .set_index("target_at_utc").sort_index())
-    table["price_published"] = False
+    # Slots whose Agile price was already published at issue time get the real price
+    prices = pd.read_parquet(DATASET_PATH, columns=["time_utc", "price_p_kwh_inc_vat"])
+    prices["time_utc"] = pd.to_datetime(prices.time_utc, utc=True)
+    prices = prices.set_index("time_utc")["price_p_kwh_inc_vat"].dropna()
+
+    known = (table.index < published_until(issued_at)) & table.index.isin(prices.index)
+    for column in ("price_p10", "price_p50", "price_p90"):
+        table.loc[known, column] = prices.reindex(table.index[known]).to_numpy()
+    table["price_published"] = known
     validate_forecast(table)
     return issued_at, table
 

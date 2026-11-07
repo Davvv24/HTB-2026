@@ -1,8 +1,6 @@
-from pathlib import Path
-
 import pandas as pd
 from fastapi import FastAPI, HTTPException
-from pydantic import BaseModel
+from pydantic import AwareDatetime, BaseModel, Field, model_validator
 
 import config
 from src import explain, models
@@ -10,8 +8,8 @@ from src.optimiser import (
     InfeasibleError, get_appliance, plan_appliance, plan_ev, validate_forecast,
 )
 
-FORECASTS_PATH = Path("results/step8/forecasts.csv")
-MODEL_DIR = Path("results/step8/models")
+FORECASTS_PATH = config.ROOT_DIR / "results/step8/forecasts.csv"
+MODEL_DIR = config.ROOT_DIR / "results/step8/models"
 FEATURES_PATH = config.DATA_DIR / "features.parquet"
 DEFAULT_EV_KWH = 30
 VALUE_COLUMNS = ["price_p10", "price_p50", "price_p90",
@@ -65,6 +63,7 @@ def grid():
     return {
         "data_as_of": "2026-11-07T18:00:00Z",
         "cached": True,
+        "synthetic": True,
         "carbon_intensity": 145,
         "mix_percent": {
             "wind": 42, "gas": 25, "nuclear": 15, "solar": 3,
@@ -89,11 +88,17 @@ def forecast():
 
 class RecommendRequest(BaseModel):
     appliance: str
-    earliest_start: str
-    deadline: str
-    carbon_weight: float = 0.5   # 0 = cheapest, 1 = greenest
-    risk_aversion: float = 0.5
-    ev_kwh_needed: float | None = None
+    earliest_start: AwareDatetime
+    deadline: AwareDatetime
+    carbon_weight: float = Field(default=0.5, ge=0, le=1, allow_inf_nan=False)
+    risk_aversion: float = Field(default=0.5, ge=0, allow_inf_nan=False)
+    ev_kwh_needed: float | None = Field(default=None, gt=0, allow_inf_nan=False)
+
+    @model_validator(mode="after")
+    def ordered_window(self):
+        if self.deadline <= self.earliest_start:
+            raise ValueError("Deadline must be after the earliest start.")
+        return self
 
 
 @app.post("/api/recommend")
@@ -102,14 +107,14 @@ def recommend(req: RecommendRequest):
 
     try:
         if req.appliance == "ev":
-            plan = plan_ev(FORECAST, req.ev_kwh_needed or DEFAULT_EV_KWH,
+            plan = plan_ev(FORECAST, DEFAULT_EV_KWH if req.ev_kwh_needed is None else req.ev_kwh_needed,
                            req.earliest_start, req.deadline, **options)
         elif req.appliance in config.APPLIANCES:
             plan = plan_appliance(FORECAST, get_appliance(req.appliance),
                                   req.earliest_start, req.deadline, **options)
         else:
             raise HTTPException(status_code=400, detail=f"Unknown appliance: {req.appliance}")
-    except InfeasibleError as error:
+    except (InfeasibleError, ValueError) as error:
         raise HTTPException(status_code=422, detail=str(error))
 
     result = plan.to_dict()

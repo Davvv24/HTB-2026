@@ -60,6 +60,9 @@ def prepare_forecasts(features, days, model_dir, estimators):
         fitted = models.fit_quantiles(train, target, estimators)
         for quantile, model in fitted.items():
             model.booster_.save_model(str(model_dir / f"{source}_p{int(100 * quantile)}.txt"))
+    (model_dir / "training.json").write_text(json.dumps({
+        "last_training_cutoff": str(pd.to_datetime(train.forecast_at_utc, utc=True).max())
+    }) + "\n")
     tables = calibration.rebuild_predictions(features, model_dir, test_days=days)
     wide = test[["forecast_at_utc", "target_at_utc", "horizon_minutes"]].copy()
     for source, table in tables.items():

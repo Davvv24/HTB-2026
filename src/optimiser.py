@@ -17,7 +17,7 @@ from dataclasses import dataclass, field
 
 import numpy as np
 import pandas as pd
-from scipy.optimize import linprog
+from scipy.optimize import Bounds, LinearConstraint, linprog, milp
 
 import config
 
@@ -89,8 +89,12 @@ def validate_forecast(forecast):
         raise ForecastError("Slots must be consecutive half-hours with no gaps.")
 
     values = forecast[[*PRICE_BAND, *CARBON_BAND]]
-    if values.isna().any().any():
-        raise ForecastError("Price and carbon bands must have no missing values.")
+    if not np.isfinite(values.to_numpy(dtype=float)).all():
+        raise ForecastError("Price and carbon bands must contain finite values without missing data.")
+    if (forecast[list(CARBON_BAND)] < 0).any().any():
+        raise ForecastError("Carbon intensity cannot be negative.")
+    if not forecast["price_published"].isin([True, False]).all():
+        raise ForecastError("price_published must contain boolean values.")
     for low, mid, high in (PRICE_BAND, CARBON_BAND):
         if ((forecast[low] > forecast[mid]) | (forecast[mid] > forecast[high])).any():
             raise ForecastError(f"Expected {low} <= {mid} <= {high} in every slot.")
@@ -220,7 +224,7 @@ def plan_appliance(forecast, appliance, earliest_utc, deadline_utc,
     validate_forecast(forecast)
     if not 0 <= carbon_weight <= 1:
         raise ValueError("carbon_weight must be between 0 and 1.")
-    if risk_aversion < 0:
+    if not np.isfinite(risk_aversion) or risk_aversion < 0:
         raise ValueError("risk_aversion cannot be negative.")
 
     earliest = _utc(earliest_utc, "earliest_utc").ceil(SLOT)
@@ -304,11 +308,11 @@ def plan_ev(forecast, energy_kwh, earliest_utc, deadline_utc, power_kw=None,
     """
     validate_forecast(forecast)
     power_kw = config.EV_CHARGER_KW if power_kw is None else power_kw
-    if energy_kwh <= 0 or power_kw <= 0:
+    if not np.isfinite([energy_kwh, power_kw]).all() or energy_kwh <= 0 or power_kw <= 0:
         raise ValueError("energy_kwh and power_kw must be positive.")
     if not 0 <= carbon_weight <= 1:
         raise ValueError("carbon_weight must be between 0 and 1.")
-    if risk_aversion < 0:
+    if not np.isfinite(risk_aversion) or risk_aversion < 0:
         raise ValueError("risk_aversion cannot be negative.")
 
     earliest = _utc(earliest_utc, "earliest_utc").ceil(SLOT)
@@ -442,18 +446,20 @@ def plan_battery(forecast, load_kwh=None, carbon_weight=0.0, risk_aversion=0.0, 
     settings = {**config.BATTERY, **battery}
     capacity = settings["capacity_kwh"]
     step = settings["power_kw"] * SLOT_HOURS
-    eta = math.sqrt(settings["round_trip_eff"])
+    if not np.isfinite(list(settings.values())).all():
+        raise ValueError("Battery settings must be finite.")
     wear = settings["degradation_p_per_kwh"]
     initial = settings["initial_kwh"]
     if not 0 < settings["round_trip_eff"] <= 1:
         raise ValueError("round_trip_eff must be in (0, 1].")
+    eta = math.sqrt(settings["round_trip_eff"])
     if capacity <= 0 or step <= 0 or wear < 0 or not 0 <= initial <= capacity:
         raise ValueError("Check battery capacity, power, wear cost and initial charge.")
-    if not 0 <= carbon_weight <= 1 or risk_aversion < 0:
+    if not 0 <= carbon_weight <= 1 or not np.isfinite(risk_aversion) or risk_aversion < 0:
         raise ValueError("carbon_weight must be 0-1 and risk_aversion non-negative.")
 
     load = typical_load(forecast.index) if load_kwh is None else load_kwh.reindex(forecast.index)
-    if load.isna().any() or (load < 0).any():
+    if not np.isfinite(load).all() or (load < 0).any():
         raise ValueError("load_kwh needs a non-negative value for every forecast slot.")
 
     buy, sell = _battery_values(forecast, carbon_weight, risk_aversion)
@@ -486,6 +492,30 @@ def plan_battery(forecast, load_kwh=None, carbon_weight=0.0, risk_aversion=0.0, 
                      bounds=bounds, method="highs")
     if result.status != 0:
         raise RuntimeError(f"Battery optimisation failed: {result.message}")
+
+    # Negative prices can make the LP profit from charging and discharging
+    # together. Only when needed, enforce one physical direction per slot.
+    if ((result.x[list(charge)] > 1e-7) & (result.x[list(discharge)] > 1e-7)).any():
+        direction = np.zeros((2 * slots, 4 * slots))
+        discharge_limit = np.minimum(step, load.to_numpy())
+        for t in range(slots):
+            direction[t, charge[t]] = 1
+            direction[t, 3 * slots + t] = -step
+            direction[slots + t, discharge[t]] = 1
+            direction[slots + t, 3 * slots + t] = discharge_limit[t]
+        constraints = [
+            LinearConstraint(np.pad(balance, ((0, 0), (0, slots))), balance_rhs, balance_rhs),
+            LinearConstraint(np.pad(keep_charge, ((0, 0), (0, slots))), -np.inf, [-initial]),
+            LinearConstraint(direction, -np.inf, np.r_[np.zeros(slots), discharge_limit]),
+        ]
+        result = milp(
+            np.r_[cost, np.zeros(slots)],
+            integrality=np.r_[np.zeros(3 * slots), np.ones(slots)],
+            bounds=Bounds(np.zeros(4 * slots), [b[1] for b in bounds] + [1] * slots),
+            constraints=constraints,
+        )
+        if not result.success:
+            raise RuntimeError(f"Battery direction optimisation failed: {result.message}")
 
     x = np.clip(result.x, 0, None).round(6)
     schedule = pd.DataFrame({

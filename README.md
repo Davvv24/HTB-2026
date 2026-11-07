@@ -1,3 +1,4 @@
+ HEAD
 # Grid Advisor
 
 Grid Advisor will help households choose when to run appliances by showing the trade-off between electricity cost, carbon and convenience. The first milestone is a data check for Edinburgh and South Scotland.
@@ -45,3 +46,7 @@ Open-Meteo’s historical forecast series stitches early hours from several runs
 The bundled samples are for checking API shape and offline behaviour. Historical training and evaluation need a larger dataset with timestamps for data availability.
 
 Weather data from [Open-Meteo](https://open-meteo.com/) under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/), reshaped to one CSV row per site and hour. Other samples come from the public Octopus Energy, NESO and Elexon Insights APIs linked above.
+
+# HTB-2026
+A GitHub repo for HTB 2026
+ origin/main

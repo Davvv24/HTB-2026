@@ -2,6 +2,31 @@
 
 Grid Advisor is a HackTheBurgh 2026 project that will help households choose when to run appliances by showing the trade-off between electricity cost, carbon and convenience. The first region is Edinburgh and South Scotland.
 
+## Run Step 3
+
+With Step 2's `data/dataset.parquet` in place, build the feature table and run the cutoff tests.
+
+```bash
+python -m src.features --assume-availability
+python -m unittest discover -s tests -v
+```
+
+The offline build writes `data/features.parquet`. It uses a 15:00 Europe/London cutoff each day and up to 96 successive half-hour targets starting at that cutoff. Each row contains a UTC cutoff, a UTC target, model inputs, separate price and carbon labels, and availability metadata. Select inputs with `src.features.FEATURE_COLUMNS`. Use `--input`, `--output`, and `--horizon-hours` to change the paths or shorten the horizon.
+
+| Input | How it is built |
+| --- | --- |
+| Horizon, hour, weekday, month and bank holiday | Horizon is elapsed minutes. Calendar fields use the target's UK local time. The cached Scottish calendar covers 2024–2028. The 2026 World Cup holiday uses its official announcement timestamp. |
+| Yesterday and last-week price and carbon | Look up the target's local clock time one or seven days earlier. Keep values only when the earlier slot is available at the cutoff. Repeated autumn times use the second occurrence. Missing spring times stay null. |
+| 24h and 7d rolling means | Average available slots in windows ending at the cutoff. A window needs at least 75% of its half-hours present. |
+| Weather forecasts | Pick the shortest eligible archived lead for the target and use its wind, gust, cloud, solar radiation and temperature forecasts at four sites. Keep missing fields null. |
+| Last-week demand and residual demand proxy | Check Elexon's actual publication timestamp and slot end. Divide last-week demand by 10,000 MW and subtract bounded wind and solar potential scores. The result is a dimensionless indicator. |
+
+Agile lags use the delivery slot's end as a conservative availability bound. Elexon demand uses its recorded publication time. The Step 2 archive lacks exact publication times for GB actual carbon and the GFS runs. The example command opts into an assumed two-hour buffer after carbon slot end and the existing 12-hour GFS release buffer. Recorded times take precedence whenever they are present. For a recorded-only build, omit `--assume-availability`. On the Step 2 snapshot, the carbon history and weather inputs then stay null. ERA5 and archived NESO forecasts are excluded from the model inputs. Flagged carbon actuals are excluded from carbon lags and labels.
+
+The target windows overlap across days. Split by `forecast_at_utc` and use only training labels with an availability time before the first validation cutoff. For price forecasting evaluation, account for which Agile rates were already published when each decision was made.
+
+Calendar source and one-off announcement details are available from [GOV.UK](https://www.gov.uk/bank-holidays) and the [Scottish Government](https://www.gov.scot/news/world-cup-bank-holiday-confirmed/). See [NESO's methodology](https://www.neso.energy/document/373951/download) and the [Open-Meteo Previous Runs API](https://open-meteo.com/en/docs/previous-runs-api) for the data timing conventions.
+
 ## Run Step 2
 
 Set up a Python 3.11+ virtual environment from the project folder and install the dependencies.

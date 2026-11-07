@@ -20,6 +20,11 @@ const RISK_OPTIONS = [
   },
 ]
 
+const METRICS = {
+  price: { label: 'Price', unit: 'p/kWh', title: 'Price, next 48 hours' },
+  carbon: { label: 'Carbon', unit: 'gCO₂/kWh', title: 'Carbon intensity, next 48 hours' },
+}
+
 // "07:00" -> the next time it's 07:00, as a UTC timestamp for the API
 function nextOccurrence(hhmm) {
   const [h, m] = hhmm.split(':').map(Number)
@@ -44,8 +49,10 @@ function App() {
   const [grid, setGrid] = useState(null)
   const [rec, setRec] = useState(null)
   const [forecast, setForecast] = useState(null)
+  const [metric, setMetric] = useState('price')
 
   const selectedRisk = RISK_OPTIONS.find((o) => o.value === riskAversion)
+  const chart = METRICS[metric]
 
   useEffect(() => {
     fetch('/api/grid')
@@ -81,82 +88,107 @@ function App() {
           : 'Loading grid data…'}
       </p>
 
-      <section className="controls">
-        <div className="row">
-          <label className="field">
-            Appliance
-            <select value={appliance} onChange={(e) => setAppliance(e.target.value)}>
-              <option value="washing_machine">Washing machine</option>
-              <option value="dishwasher">Dishwasher</option>
-              <option value="tumble_dryer">Tumble dryer</option>
-              <option value="ev">Electric car</option>
-              <option value="battery">Home battery</option>
-            </select>
-          </label>
+      <div className="layout">
+        <section className="controls">
+          <div className="row">
+            <label className="field">
+              Appliance
+              <select value={appliance} onChange={(e) => setAppliance(e.target.value)}>
+                <option value="washing_machine">Washing machine</option>
+                <option value="dishwasher">Dishwasher</option>
+                <option value="tumble_dryer">Tumble dryer</option>
+                <option value="ev">Electric car</option>
+                <option value="battery">Home battery</option>
+              </select>
+            </label>
 
-          <label className="field">
-            Finish by
-            <input type="time" value={finishBy} onChange={(e) => setFinishBy(e.target.value)} />
-          </label>
-        </div>
-
-        <label className="field">
-          What matters more?
-          <input
-            type="range" min="0" max="100"
-            value={carbonWeight}
-            onChange={(e) => setCarbonWeight(Number(e.target.value))}
-          />
-          <span className="slider-ends">
-            <span>Cheapest</span>
-            <span>Greenest</span>
-          </span>
-        </label>
-
-        <fieldset className="field">
-          <legend>How sure do you want to be?</legend>
-          <div className="segmented">
-            {RISK_OPTIONS.map((option) => (
-              <button
-                key={option.value}
-                type="button"
-                aria-pressed={riskAversion === option.value}
-                onClick={() => setRiskAversion(option.value)}
-              >
-                {option.label}
-              </button>
-            ))}
+            <label className="field">
+              Finish by
+              <input type="time" value={finishBy} onChange={(e) => setFinishBy(e.target.value)} />
+            </label>
           </div>
-          <p className="hint">{selectedRisk.hint}</p>
-        </fieldset>
 
-        <button className="primary" onClick={getRecommendation}>
-          Find the best time
-        </button>
-      </section>
+          <label className="field">
+            What matters more?
+            <input
+              type="range" min="0" max="100"
+              value={carbonWeight}
+              onChange={(e) => setCarbonWeight(Number(e.target.value))}
+            />
+            <span className="slider-ends">
+              <span>Cheapest</span>
+              <span>Greenest</span>
+            </span>
+          </label>
 
-      {rec && (
-        <section className="rec-card">
-          <h2>Run it at {ukTime(rec.start)}</h2>
-          <p>
-            Saves £{rec.saving_gbp.toFixed(2)} and {rec.saving_co2_kg} kg CO₂
-            compared with running now.
-          </p>
-          <p className="why">Why: {rec.why}</p>
+          <fieldset className="field">
+            <legend>How sure do you want to be?</legend>
+            <div className="segmented">
+              {RISK_OPTIONS.map((option) => (
+                <button
+                  key={option.value}
+                  type="button"
+                  aria-pressed={riskAversion === option.value}
+                  onClick={() => setRiskAversion(option.value)}
+                >
+                  {option.label}
+                </button>
+              ))}
+            </div>
+            <p className="hint">{selectedRisk.hint}</p>
+          </fieldset>
+
+          <button className="primary" onClick={getRecommendation}>
+            Find the best time
+          </button>
         </section>
-      )}
-      {forecast && (
-        <>
-          <ForecastChart
-            slots={forecast.slots} metric="carbon" unit="gCO₂/kWh"
-            title="Carbon intensity, next 48 hours" rec={rec}
-          />
-          <ForecastChart
-            slots={forecast.slots} metric="price" unit="p/kWh"
-            title="Price, next 48 hours" rec={rec}
-          />
-        </>
-      )}
+
+        <div className="results">
+          {rec ? (
+            <section className="rec-card">
+              <h2>Run it at {ukTime(rec.start)}</h2>
+              <p>
+                Saves £{rec.saving_gbp.toFixed(2)} and {rec.saving_co2_kg} kg CO₂
+                compared with running now.
+              </p>
+              <p className="why">Why: {rec.why}</p>
+            </section>
+          ) : (
+            <p className="placeholder">
+              Choose your appliance and when it needs to finish, then press
+              “Find the best time”.
+            </p>
+          )}
+
+          <div className="results-header">
+            <h2>Next 48 hours</h2>
+            <div className="segmented small">
+              {Object.entries(METRICS).map(([key, m]) => (
+                <button
+                  key={key}
+                  type="button"
+                  aria-pressed={metric === key}
+                  onClick={() => setMetric(key)}
+                >
+                  {m.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {forecast ? (
+            <ForecastChart
+              slots={forecast.slots}
+              metric={metric}
+              unit={chart.unit}
+              title={chart.title}
+              rec={rec}
+            />
+          ) : (
+            <p className="placeholder">Loading forecast…</p>
+          )}
+        </div>
+      </div>
     </main>
   )
 }

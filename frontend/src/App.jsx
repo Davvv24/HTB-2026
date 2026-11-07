@@ -3,6 +3,7 @@ import './App.css'
 import ForecastChart from './components/ForecastChart'
 import { nextOccurrence, requestJson, savingText } from './request'
 import Receipts from './components/Receipts'
+import WhyPanel from './components/WhyPanel'
 
 const RISK_OPTIONS = [
   {
@@ -245,12 +246,11 @@ function App() {
                   <p className="compare-sub">{rec.co2_kg.toFixed(2)} kg CO₂</p>
                 </div>
               </div>
-              {rec.why && (
-                <details className="why">
-                  <summary>Why this time?</summary>
-                  <p>{rec.why}</p>
-                </details>
-              )}
+              <details className="why">
+                <summary>Why this time?</summary>
+                <WhyPanel drivers={rec.model_drivers} />
+                {rec.interpretation && <p className="hint">{rec.interpretation}</p>}
+              </details>
             </section>
           ) : (
             !error && (

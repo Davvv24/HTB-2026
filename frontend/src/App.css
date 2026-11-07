@@ -203,3 +203,20 @@
 .receipts h3 { font-size: 1rem; margin: 0 0 6px; }
 .receipts summary { cursor: pointer; font-weight: 600; }
 .receipts ul { margin: 12px 0 0; padding-left: 20px; color: var(--muted); }
+
+
+/* Why this slot? */
+.why summary { cursor: pointer; font-weight: 600; }
+.why-panel { display: grid; gap: 12px; margin-top: 8px; }
+.why-panel h4 { margin: 0 0 4px; font-size: 0.95rem; }
+.why-panel ul { list-style: none; padding: 0; margin: 0; display: grid; gap: 4px; }
+.why-panel li {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 6px 8px;
+  border-radius: 6px;
+  background: var(--bg);
+}
+.why-panel li.helps span:last-child { color: var(--green); }
+.why-panel li.hurts span:last-child { color: var(--red); }

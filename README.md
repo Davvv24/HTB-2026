@@ -155,3 +155,39 @@ Open-Meteo’s historical forecast series stitches early hours from several runs
 The bundled samples are for checking API shape and offline behaviour. Historical training and evaluation need a larger dataset with timestamps for data availability.
 
 Weather data from [Open-Meteo](https://open-meteo.com/) under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/), reshaped to one CSV row per site and hour. Other samples come from the public Octopus Energy, NESO and Elexon Insights APIs linked above.
+
+## Running the app
+
+### Requirements
+- Python 3.11+ and Node.js 20+
+- On Ubuntu / WSL, LightGBM needs a system library:
+  ```bash
+  sudo apt install libgomp1
+  ```
+  (On macOS: `brew install libomp`.)
+
+### 1. Back end (FastAPI)
+From the repo root:
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+uvicorn app.main:app --reload --port 8000
+```
+Check it's running at http://localhost:8000/docs
+
+### 2. Front end (React + Vite)
+In a second terminal:
+```bash
+cd frontend
+npm install
+npm run dev
+```
+Open http://localhost:5173
+
+The front end forwards `/api` requests to the back end, so both must be running.
+
+### Note on data
+The app currently replays the latest saved model forecast from `results/step8/`
+(a historical demo, labelled in the app). Live data is Step 11.
+

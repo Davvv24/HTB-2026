@@ -1,0 +1,9 @@
+target,comparator,method,paired_slots,coverage_pct,mae,rmse
+price,yesterday,lightgbm_p50,2882,50.0347,7.8419,9.5666
+price,yesterday,yesterday,2882,50.0347,7.9159,11.7369
+price,last_week,lightgbm_p50,5760,100.0000,8.4581,10.2981
+price,last_week,last_week,5760,100.0000,11.9040,16.1601
+carbon,yesterday,lightgbm_p50,2642,45.8681,22.9374,29.8407
+carbon,yesterday,yesterday,2642,45.8681,42.0424,55.3076
+carbon,last_week,lightgbm_p50,5760,100.0000,23.7357,30.5304
+carbon,last_week,last_week,5760,100.0000,57.6280,69.6244

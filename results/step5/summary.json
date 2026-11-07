@@ -1,0 +1,26 @@
+{
+  "split": {
+    "train_cutoffs": 271,
+    "validation_cutoffs": 28,
+    "test_cutoffs": 60,
+    "last_train_cutoff_utc": "2026-08-03 14:00:00+00:00",
+    "first_validation_cutoff_utc": "2026-08-06 14:00:00+00:00",
+    "first_test_cutoff_utc": "2026-09-05 14:00:00+00:00",
+    "purge_hours": 52
+  },
+  "data_limitations": [
+    "Step 3 'buffered' weather and carbon availability uses ASSUMED release delays, not measured historical issue timestamps.",
+    "NESO historical archived carbon forecasts have no original 15:00 issue timestamps; correction is a retrospective diagnostic only.",
+    "The nominal 80% quantile interval is uncalibrated; Step 6 applies conformal calibration."
+  ],
+  "official_archive_diagnostic": {
+    "status": "retrospective_diagnostic_only",
+    "warning": "Archive forecast values lack original 15:00 issuance timestamps. Not a prospective 48h comparison; do not feed these values into the app/backtest.",
+    "test_rows": 5760,
+    "archive_mae": 10.955034722222223,
+    "corrected_archive_mae": 9.279457045596425,
+    "archive_rmse": 16.679333728033356,
+    "corrected_archive_rmse": 13.997215930147668,
+    "mae_improved": true
+  }
+}

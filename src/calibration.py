@@ -146,6 +146,16 @@ def rebuild_predictions(features, model_dir, validation_days=30, test_days=60, p
     Returns {target: long table} with a `split` column: validation, gap or test.
     """
     train, valid, test = models.chronological_split(features, validation_days, test_days, purge_hours)
+    manifest = Path(model_dir) / "training.json"
+    legacy = Path(model_dir) / "summary.json"
+    if manifest.is_file():
+        last_trained = json.loads(manifest.read_text())["last_training_cutoff"]
+    elif legacy.is_file():
+        last_trained = json.loads(legacy.read_text())["split"]["last_train_cutoff_utc"]
+    else:
+        raise ValueError("Model training metadata is missing; retrain before calibration.")
+    if pd.Timestamp(last_trained) != pd.to_datetime(train.forecast_at_utc, utc=True).max():
+        raise ValueError("Saved model training period does not match this split; retrain the models.")
     times = pd.to_datetime(features["forecast_at_utc"], utc=True)
     first_valid = pd.to_datetime(valid["forecast_at_utc"], utc=True).min()
     post = features.loc[times >= first_valid]
@@ -183,6 +193,11 @@ def _check_matches_step5(tables, step5_dir):
     worst = 0.0
     for source, table in tables.items():
         test = table[table["split"] == "test"]
+        for timestamp in ("forecast_at_utc", "target_at_utc"):
+            if not pd.DatetimeIndex(pd.to_datetime(test[timestamp], utc=True)).equals(
+                pd.DatetimeIndex(pd.to_datetime(saved[timestamp], utc=True))
+            ):
+                raise ValueError("Saved predictions have different issue/target timestamps.")
         for q in ("p10", "p50", "p90"):
             worst = max(worst, float(np.max(np.abs(test[q].to_numpy() - saved[f"{source}_{q}"].to_numpy()))))
     return worst
@@ -195,6 +210,8 @@ def run(features, *, model_dir=Path("results/step5"), out_dir=Path("results/step
     tables = rebuild_predictions(features, model_dir, validation_days, test_days, purge_hours)
     mismatch = _check_matches_step5(tables, model_dir)
     if mismatch is not None:
+        if not np.isfinite(mismatch) or mismatch > 1e-6:
+            raise ValueError("Rebuilt predictions differ from the saved model results.")
         print(f"Rebuilt test predictions vs Step 5 saved: max difference {mismatch:.2e}")
 
     report, wide, saved_offsets = [], None, {}

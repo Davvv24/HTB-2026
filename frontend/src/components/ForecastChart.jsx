@@ -34,15 +34,15 @@ export default function ForecastChart({ slots, metric, unit, title, rec, confirm
     // ...and the bottom edge, filled up to the top edge = the 80% range
     { x: times, y: p10, type: 'scatter', mode: 'lines', line: { width: 0 },
       fill: 'tonexty', fillcolor: 'rgba(29, 29, 31, 0.15)',
-      name: '80% likely range', hoverinfo: 'skip' },
+      name: 'Calibrated forecast band', hoverinfo: 'skip' },
   ]
 
   const shapes = []
   // Shade the recommended window, once there is a recommendation
-  if (rec) {
+  for (const block of rec?.blocks ?? (rec ? [{ start: rec.start, end: rec.end }] : [])) {
     shapes.push({
       type: 'rect', xref: 'x', yref: 'paper',
-      x0: londonTime(rec.start), x1: londonTime(rec.end), y0: 0, y1: 1,
+      x0: londonTime(block.start), x1: londonTime(block.end), y0: 0, y1: 1,
       fillcolor: 'rgba(26, 127, 75, 0.12)',
       line: { color: '#1a7f4b', width: 1 },
       layer: 'below',
@@ -89,7 +89,7 @@ export default function ForecastChart({ slots, metric, unit, title, rec, confirm
       )}
       <p className="hint">
         Green: the lowest third of the next 48 hours. Red: the highest third.
-        The grey band is where the true value will fall 80% of the time.
+        The grey band targets 80% coverage. Actual coverage varies and is not guaranteed.
       </p>
     </section>
   )

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import './App.css'
 import ForecastChart from './components/ForecastChart'
+import { nextOccurrence, requestJson, savingText } from './request'
 
 const RISK_OPTIONS = [
   {
@@ -32,15 +33,6 @@ const METRICS = {
   carbon: { label: 'Carbon', unit: 'gCO₂/kWh', title: 'Carbon intensity, next 48 hours' },
 }
 
-// "07:00" -> the next 07:00 after `from` (default: now)
-function nextOccurrence(hhmm, from = new Date()) {
-  const [h, m] = hhmm.split(':').map(Number)
-  const d = new Date(from)
-  d.setHours(h, m, 0, 0)
-  if (d <= from) d.setDate(d.getDate() + 1)
-  return d
-}
-
 // UTC timestamp -> "Mon 02:30" in UK time
 function ukTime(iso) {
   return new Date(iso).toLocaleTimeString('en-GB', {
@@ -62,6 +54,7 @@ function App() {
   const [forecast, setForecast] = useState(null)
   const [metric, setMetric] = useState('price')
   const [error, setError] = useState(null)
+  const [evKwh, setEvKwh] = useState(30)
 
   const selectedRisk = RISK_OPTIONS.find((o) => o.value === riskAversion)
   const chart = METRICS[metric]
@@ -73,24 +66,23 @@ function App() {
     : null
 
   useEffect(() => {
-    fetch('/api/grid')
-      .then((res) => res.json())
+    requestJson('/api/grid')
       .then((data) => setGrid(data))
-    fetch('/api/forecast')
-      .then((res) => res.json())
+      .catch((error) => setError(error.message))
+    requestJson('/api/forecast')
       .then((data) => setForecast(data))
+      .catch((error) => setError(error.message))
   }, [])
 
   async function getRecommendation() {
     if (!forecast) return
     // The forecast is a historical replay, so "now" is when it was issued
-    const now = new Date(forecast.data_as_of)
-    const start = startAfter ? nextOccurrence(startAfter, now) : now
-    const deadline = nextOccurrence(finishBy, start)
-
     setLoading(true)
     try {
-      const res = await fetch('/api/recommend', {
+      const now = new Date(forecast.data_as_of)
+      const start = startAfter ? nextOccurrence(startAfter, now) : now
+      const deadline = nextOccurrence(finishBy, start)
+      const data = await requestJson('/api/recommend', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -99,18 +91,16 @@ function App() {
           deadline: deadline.toISOString(),
           carbon_weight: carbonWeight / 100,
           risk_aversion: riskAversion,
+          ev_kwh_needed: appliance === 'ev' ? Number(evKwh) : null,
         }),
       })
-      const data = await res.json()
-      if (!res.ok) {
-        setError(data.detail)
-        setRec(null)
-        return
-      }
       setError(null)
       setRec(data)
       setRecFor({ appliance, deadline: deadline.toISOString(), risk: selectedRisk.label })
       setRequestCount((n) => n + 1)
+    } catch (error) {
+      setError(error.message)
+      setRec(null)
     } finally {
       setLoading(false)
     }
@@ -122,7 +112,7 @@ function App() {
 
       <p className="grid-status">
         {grid
-          ? `Grid carbon intensity now: ${grid.carbon_intensity} gCO₂/kWh`
+          ? `${grid.synthetic ? 'Illustrative grid carbon intensity' : 'Grid carbon intensity'}: ${grid.carbon_intensity} gCO₂/kWh`
           : 'Loading grid data…'}
       </p>
 
@@ -147,6 +137,14 @@ function App() {
               <option value="ev">Electric car</option>
             </select>
           </label>
+
+          {appliance === 'ev' && (
+            <label className="field">
+              Energy needed (kWh)
+              <input type="number" min="0.1" step="0.1" value={evKwh}
+                onChange={(event) => setEvKwh(event.target.value)} />
+            </label>
+          )}
 
           <div className="row">
             <label className="field">
@@ -201,14 +199,11 @@ function App() {
           {rec ? (
             <section className="rec-card" key={requestCount}>
               <h2>Run it at {ukTime(rec.start)}</h2>
-              {rec.saving_gbp > 0 || rec.saving_co2_kg > 0 ? (
-                <p>
-                  Saves £{rec.saving_gbp.toFixed(2)} and {rec.saving_co2_kg.toFixed(2)} kg CO₂
-                  compared with starting at {ukTime(rec.run_now.start)}.
-                </p>
-              ) : (
-                <p>Good news: starting straight away is already the best option in your time window.</p>
-              )}
+              <p>
+                Estimated cost is {savingText(rec.saving_gbp, 'GBP')} and emissions are{' '}
+                {savingText(rec.saving_co2_kg, 'kg CO₂', 3)} compared with starting at{' '}
+                {ukTime(rec.run_now.start)}.
+              </p>
               <p className="for-line">
                 For: {APPLIANCE_LABELS[recFor.appliance]}, finishing by {ukTime(recFor.deadline)},{' '}
                 {recFor.risk.toLowerCase()}.

@@ -8,11 +8,25 @@ import numpy as np
 import pandas as pd
 
 from src.models import (chronological_split, evaluate_quantiles, numeric_features,
-                        pinball, predict_quantiles)
+                        pinball, predict_quantiles, load_models)
 from src.features import FEATURE_COLUMNS
 
 
 class ModelTests(unittest.TestCase):
+    def test_saved_models_load_after_windows_newline_conversion(self):
+        import lightgbm as lgb
+
+        frame = pd.DataFrame({"x": np.arange(20, dtype=float)})
+        fitted = lgb.LGBMRegressor(n_estimators=2, min_child_samples=2, n_jobs=1, verbosity=-1)
+        fitted.fit(frame, np.arange(20, dtype=float))
+        saved = fitted.booster_.model_to_string().replace("\r\n", "\n")
+        with tempfile.TemporaryDirectory() as directory:
+            for ending in ("\n", "\r\n"):
+                for q in (10, 50, 90):
+                    (Path(directory) / f"price_p{q}.txt").write_bytes(saved.replace("\n", ending).encode())
+                loaded = load_models(directory, "price")
+                np.testing.assert_allclose(loaded[0.5].predict(frame), fitted.predict(frame))
+
     @staticmethod
     def fake_frame(days=110):
         cutoffs = pd.date_range("2026-01-01 15:00", periods=days, freq="D", tz="UTC")

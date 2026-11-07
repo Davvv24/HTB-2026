@@ -99,7 +99,9 @@ def load_models(model_dir, source):
     if source not in TARGETS:
         raise ValueError(f"Unknown target: {source}")
     model_dir = Path(model_dir)
-    return {q: lgb.Booster(model_file=str(model_dir / f"{source}_p{int(q * 100)}.txt"))
+    # Git on Windows can expand LF to CRLF, invalidating LightGBM's stored
+    # tree byte offsets. Universal-newline reading restores the saved format.
+    return {q: lgb.Booster(model_str=(model_dir / f"{source}_p{int(q * 100)}.txt").read_text(encoding="utf-8"))
             for q in QUANTILES}
 
 

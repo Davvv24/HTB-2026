@@ -1,0 +1,223 @@
+target,quantile,feature,group,gain,gain_pct
+price,0.1,horizon_minutes,Forecast lead time,214.4655909538269,0.7394928804017654
+price,0.1,hour_of_day,Time and calendar,905.8424906730652,3.1234104717635183
+price,0.1,day_of_week,Time and calendar,621.7448717355728,2.1438213189814292
+price,0.1,month,Time and calendar,1381.4995537996292,4.763510452979785
+price,0.1,is_bank_holiday,Time and calendar,58.231340289115906,0.20078587603978204
+price,0.1,price_yesterday,Recent electricity prices,468.57141947746277,1.6156681690627621
+price,0.1,price_last_week,Recent electricity prices,1830.659926533699,6.312247927920266
+price,0.1,carbon_yesterday,Recent carbon intensity,144.80646991729736,0.4993031892141998
+price,0.1,carbon_last_week,Recent carbon intensity,462.1171419620514,1.5934133530358336
+price,0.1,price_mean_24h,Recent electricity prices,853.976092338562,2.9445713762710177
+price,0.1,price_mean_7d,Recent electricity prices,1162.2152217626572,4.007402204547946
+price,0.1,carbon_mean_24h,Recent carbon intensity,545.0697585344315,1.8794399790001792
+price,0.1,carbon_mean_7d,Recent carbon intensity,988.5692197084427,3.4086582211507777
+price,0.1,demand_last_week_mw,Demand indicators,416.8449293375015,1.4373114871514492
+price,0.1,weather_forecast_south_scotland_wind_speed_100m,Wind forecasts,1547.1162456274033,5.334568793563193
+price,0.1,weather_forecast_south_scotland_wind_gusts_10m,Wind forecasts,1638.5825328826904,5.6499511722526945
+price,0.1,weather_forecast_south_scotland_cloud_cover,Solar and cloud forecasts,95.4900393486023,0.3292565671421791
+price,0.1,weather_forecast_south_scotland_shortwave_radiation,Solar and cloud forecasts,171.445059299469,0.5911549734768934
+price,0.1,weather_forecast_south_scotland_temperature_2m,Temperature forecasts,840.4724522829056,2.8980098479799086
+price,0.1,weather_forecast_north_sea_wind_speed_100m,Wind forecasts,654.6068000793457,2.2571316264224253
+price,0.1,weather_forecast_north_sea_wind_gusts_10m,Wind forecasts,339.6694675683975,1.1712049090931629
+price,0.1,weather_forecast_north_sea_cloud_cover,Solar and cloud forecasts,315.2137312889099,1.0868797603211262
+price,0.1,weather_forecast_north_sea_shortwave_radiation,Solar and cloud forecasts,285.3636305332184,0.9839544523967346
+price,0.1,weather_forecast_north_sea_temperature_2m,Temperature forecasts,1124.546337723732,3.877517165947688
+price,0.1,weather_forecast_east_anglia_wind_speed_100m,Wind forecasts,552.9227602481842,1.9065176973011688
+price,0.1,weather_forecast_east_anglia_wind_gusts_10m,Wind forecasts,993.9887565374374,3.4273451763975036
+price,0.1,weather_forecast_east_anglia_cloud_cover,Solar and cloud forecasts,330.33028984069824,1.1390027483282352
+price,0.1,weather_forecast_east_anglia_shortwave_radiation,Solar and cloud forecasts,410.0122791528702,1.4137520147748361
+price,0.1,weather_forecast_east_anglia_temperature_2m,Temperature forecasts,515.8555574417114,1.7787072991394592
+price,0.1,weather_forecast_south_england_wind_speed_100m,Wind forecasts,418.3612105846405,1.4425397346384197
+price,0.1,weather_forecast_south_england_wind_gusts_10m,Wind forecasts,233.09246289730072,0.803719683056182
+price,0.1,weather_forecast_south_england_cloud_cover,Solar and cloud forecasts,126.29763054847717,0.435483371420262
+price,0.1,weather_forecast_south_england_shortwave_radiation,Solar and cloud forecasts,348.65591871738434,1.2021908430847128
+price,0.1,weather_forecast_south_england_temperature_2m,Temperature forecasts,391.45248794555664,1.349756511353933
+price,0.1,wind_potential,Wind forecasts,688.2574533224106,2.3731615144032556
+price,0.1,solar_potential,Solar and cloud forecasts,330.61018085479736,1.1399678328030651
+price,0.1,residual_demand_proxy,Demand indicators,6594.754082322121,22.739189397182248
+price,0.5,horizon_minutes,Forecast lead time,460.6450002193451,0.45567655278198343
+price,0.5,hour_of_day,Time and calendar,7730.126079797745,7.646750106774341
+price,0.5,day_of_week,Time and calendar,1641.1443500518799,1.6234432148252451
+price,0.5,month,Time and calendar,6256.772133350372,6.18928753358852
+price,0.5,is_bank_holiday,Time and calendar,255.5943899154663,0.25283758740816714
+price,0.5,price_yesterday,Recent electricity prices,6661.469744682312,6.589620137574302
+price,0.5,price_last_week,Recent electricity prices,26817.445791721344,26.52819686954262
+price,0.5,carbon_yesterday,Recent carbon intensity,239.0987377166748,0.23651985482395013
+price,0.5,carbon_last_week,Recent carbon intensity,1762.021580696106,1.7430166819063289
+price,0.5,price_mean_24h,Recent electricity prices,6849.790892124176,6.775910081547197
+price,0.5,price_mean_7d,Recent electricity prices,3070.238253593445,3.0371231272469252
+price,0.5,carbon_mean_24h,Recent carbon intensity,1686.151602268219,1.667965025613086
+price,0.5,carbon_mean_7d,Recent carbon intensity,2825.1449160575867,2.7946733294525483
+price,0.5,demand_last_week_mw,Demand indicators,836.8508377075195,0.8278246908958053
+price,0.5,weather_forecast_south_scotland_wind_speed_100m,Wind forecasts,1996.886070728302,1.9753479590021592
+price,0.5,weather_forecast_south_scotland_wind_gusts_10m,Wind forecasts,1794.8162641525269,1.7754576468573917
+price,0.5,weather_forecast_south_scotland_cloud_cover,Solar and cloud forecasts,202.64009952545166,0.2004544540007753
+price,0.5,weather_forecast_south_scotland_shortwave_radiation,Solar and cloud forecasts,237.7037582397461,0.23513992138508547
+price,0.5,weather_forecast_south_scotland_temperature_2m,Temperature forecasts,1024.0444099903107,1.0129992215650847
+price,0.5,weather_forecast_north_sea_wind_speed_100m,Wind forecasts,976.8931264877319,0.9663565046888128
+price,0.5,weather_forecast_north_sea_wind_gusts_10m,Wind forecasts,1162.071445941925,1.1495375187422983
+price,0.5,weather_forecast_north_sea_cloud_cover,Solar and cloud forecasts,319.8906285762787,0.31644033654439074
+price,0.5,weather_forecast_north_sea_shortwave_radiation,Solar and cloud forecasts,448.0840504169464,0.4432510834880605
+price,0.5,weather_forecast_north_sea_temperature_2m,Temperature forecasts,2357.4017086029053,2.3319751296269846
+price,0.5,weather_forecast_east_anglia_wind_speed_100m,Wind forecasts,2332.2124037742615,2.307057512837862
+price,0.5,weather_forecast_east_anglia_wind_gusts_10m,Wind forecasts,1080.5246856212616,1.0688703094688565
+price,0.5,weather_forecast_east_anglia_cloud_cover,Solar and cloud forecasts,204.79310989379883,0.2025842423242894
+price,0.5,weather_forecast_east_anglia_shortwave_radiation,Solar and cloud forecasts,475.94133138656616,0.4708079000302373
+price,0.5,weather_forecast_east_anglia_temperature_2m,Temperature forecasts,980.8356642723083,0.9702565188559764
+price,0.5,weather_forecast_south_england_wind_speed_100m,Wind forecasts,801.3978872299194,0.7927541305903845
+price,0.5,weather_forecast_south_england_wind_gusts_10m,Wind forecasts,436.98948526382446,0.4322761826399401
+price,0.5,weather_forecast_south_england_cloud_cover,Solar and cloud forecasts,52.71334981918335,0.052144791585187186
+price,0.5,weather_forecast_south_england_shortwave_radiation,Solar and cloud forecasts,717.914796590805,0.7101714759650147
+price,0.5,weather_forecast_south_england_temperature_2m,Temperature forecasts,1392.8687582015991,1.3778454860311151
+price,0.5,wind_potential,Wind forecasts,5053.832149505615,4.999322278824048
+price,0.5,solar_potential,Solar and cloud forecasts,1200.6640901565552,1.1877139085220427
+price,0.5,residual_demand_proxy,Demand indicators,8746.731619358063,8.652390692442983
+price,0.9,horizon_minutes,Forecast lead time,258.56546092033386,0.9361870905525127
+price,0.9,hour_of_day,Time and calendar,2092.890634059906,7.577722045980591
+price,0.9,day_of_week,Time and calendar,615.6365882158279,2.2290333144573773
+price,0.9,month,Time and calendar,736.9692186117172,2.6683419592976447
+price,0.9,is_bank_holiday,Time and calendar,7.196680068969727,0.026056995205101602
+price,0.9,price_yesterday,Recent electricity prices,986.4364023208618,3.57158694829852
+price,0.9,price_last_week,Recent electricity prices,11603.626846909523,42.013212511056466
+price,0.9,carbon_yesterday,Recent carbon intensity,127.81410026550293,0.4627760808935572
+price,0.9,carbon_last_week,Recent carbon intensity,489.85137963294983,1.7736032348226192
+price,0.9,price_mean_24h,Recent electricity prices,1450.6457905769348,5.252348311597984
+price,0.9,price_mean_7d,Recent electricity prices,723.260390162468,2.618706450459361
+price,0.9,carbon_mean_24h,Recent carbon intensity,517.522879242897,1.8737933399466877
+price,0.9,carbon_mean_7d,Recent carbon intensity,610.4715517759323,2.210332284474284
+price,0.9,demand_last_week_mw,Demand indicators,415.8892014026642,1.5058086260536172
+price,0.9,weather_forecast_south_scotland_wind_speed_100m,Wind forecasts,529.7590599060059,1.9180968379223908
+price,0.9,weather_forecast_south_scotland_wind_gusts_10m,Wind forecasts,373.8967502117157,1.3537666999367524
+price,0.9,weather_forecast_south_scotland_cloud_cover,Solar and cloud forecasts,73.6610289812088,0.2667042387005799
+price,0.9,weather_forecast_south_scotland_shortwave_radiation,Solar and cloud forecasts,93.14621984958649,0.33725420342903734
+price,0.9,weather_forecast_south_scotland_temperature_2m,Temperature forecasts,246.86710107326508,0.8938308785879223
+price,0.9,weather_forecast_north_sea_wind_speed_100m,Wind forecasts,325.9003108739853,1.1799861542268426
+price,0.9,weather_forecast_north_sea_wind_gusts_10m,Wind forecasts,336.1437499523163,1.2170745394808549
+price,0.9,weather_forecast_north_sea_cloud_cover,Solar and cloud forecasts,64.29537975788116,0.23279406420815613
+price,0.9,weather_forecast_north_sea_shortwave_radiation,Solar and cloud forecasts,306.2108566761017,1.108696613951535
+price,0.9,weather_forecast_north_sea_temperature_2m,Temperature forecasts,427.47074913978577,1.5477418968064791
+price,0.9,weather_forecast_east_anglia_wind_speed_100m,Wind forecasts,327.7138923406601,1.1865525825143755
+price,0.9,weather_forecast_east_anglia_wind_gusts_10m,Wind forecasts,273.0528494119644,0.9886415291051638
+price,0.9,weather_forecast_east_anglia_cloud_cover,Solar and cloud forecasts,65.68144035339355,0.23781256912224452
+price,0.9,weather_forecast_east_anglia_shortwave_radiation,Solar and cloud forecasts,95.34991014003754,0.34523309741647457
+price,0.9,weather_forecast_east_anglia_temperature_2m,Temperature forecasts,365.1056706905365,1.3219368680231842
+price,0.9,weather_forecast_south_england_wind_speed_100m,Wind forecasts,218.00805270671844,0.7893410196940625
+price,0.9,weather_forecast_south_england_wind_gusts_10m,Wind forecasts,136.77902054786682,0.49523533746366566
+price,0.9,weather_forecast_south_england_cloud_cover,Solar and cloud forecasts,84.6741601228714,0.30657944540718285
+price,0.9,weather_forecast_south_england_shortwave_radiation,Solar and cloud forecasts,220.3074413537979,0.7976664083979391
+price,0.9,weather_forecast_south_england_temperature_2m,Temperature forecasts,605.4544622898102,2.1921669255267426
+price,0.9,wind_potential,Wind forecasts,819.1056084632874,2.965732908459723
+price,0.9,solar_potential,Solar and cloud forecasts,242.6852890253067,0.8786898058379861
+price,0.9,residual_demand_proxy,Demand indicators,750.9483581781387,2.7189561826843787
+carbon,0.1,horizon_minutes,Forecast lead time,240.4529902935028,0.8935312960155922
+carbon,0.1,hour_of_day,Time and calendar,718.468512058258,2.669852847087492
+carbon,0.1,day_of_week,Time and calendar,581.1158311367035,2.1594457240766824
+carbon,0.1,month,Time and calendar,1270.522497534752,4.721303787711178
+carbon,0.1,is_bank_holiday,Time and calendar,143.2995593547821,0.5325059207309077
+carbon,0.1,price_yesterday,Recent electricity prices,144.30974912643433,0.5362598194650608
+carbon,0.1,price_last_week,Recent electricity prices,1194.8689068555832,4.440172532719182
+carbon,0.1,carbon_yesterday,Recent carbon intensity,476.0837684869766,1.7691430917490647
+carbon,0.1,carbon_last_week,Recent carbon intensity,462.1946804523468,1.717530779434258
+carbon,0.1,price_mean_24h,Recent electricity prices,1092.0343893766403,4.058036051214253
+carbon,0.1,price_mean_7d,Recent electricity prices,1105.1874784231186,4.106913366850722
+carbon,0.1,carbon_mean_24h,Recent carbon intensity,1210.050686955452,4.4965885316714145
+carbon,0.1,carbon_mean_7d,Recent carbon intensity,792.5643014907837,2.9451952609211864
+carbon,0.1,demand_last_week_mw,Demand indicators,384.47496819496155,1.4287217480533876
+carbon,0.1,weather_forecast_south_scotland_wind_speed_100m,Wind forecasts,540.4688885211945,2.008400335662195
+carbon,0.1,weather_forecast_south_scotland_wind_gusts_10m,Wind forecasts,765.5080791711807,2.8446534403973014
+carbon,0.1,weather_forecast_south_scotland_cloud_cover,Solar and cloud forecasts,81.81882011890411,0.3040414523024812
+carbon,0.1,weather_forecast_south_scotland_shortwave_radiation,Solar and cloud forecasts,133.22124874591827,0.49505458386462997
+carbon,0.1,weather_forecast_south_scotland_temperature_2m,Temperature forecasts,572.2003300189972,2.126315425889878
+carbon,0.1,weather_forecast_north_sea_wind_speed_100m,Wind forecasts,290.878600358963,1.0809145373683824
+carbon,0.1,weather_forecast_north_sea_wind_gusts_10m,Wind forecasts,481.02613973617554,1.7875091074193061
+carbon,0.1,weather_forecast_north_sea_cloud_cover,Solar and cloud forecasts,294.8696686029434,1.0957454794838353
+carbon,0.1,weather_forecast_north_sea_shortwave_radiation,Solar and cloud forecasts,624.8306367397308,2.3218913932191807
+carbon,0.1,weather_forecast_north_sea_temperature_2m,Temperature forecasts,1306.8189698457718,4.856182684019651
+carbon,0.1,weather_forecast_east_anglia_wind_speed_100m,Wind forecasts,1328.8214284181595,4.937944550651951
+carbon,0.1,weather_forecast_east_anglia_wind_gusts_10m,Wind forecasts,612.2220506668091,2.275037468712315
+carbon,0.1,weather_forecast_east_anglia_cloud_cover,Solar and cloud forecasts,175.43063867092133,0.6519060783612428
+carbon,0.1,weather_forecast_east_anglia_shortwave_radiation,Solar and cloud forecasts,242.22153067588806,0.9001032507997674
+carbon,0.1,weather_forecast_east_anglia_temperature_2m,Temperature forecasts,680.3814424276352,2.528320031683756
+carbon,0.1,weather_forecast_south_england_wind_speed_100m,Wind forecasts,455.11408138275146,1.6912190381849612
+carbon,0.1,weather_forecast_south_england_wind_gusts_10m,Wind forecasts,435.51512038707733,1.618388648354301
+carbon,0.1,weather_forecast_south_england_cloud_cover,Solar and cloud forecasts,109.24765002727509,0.40596789499842045
+carbon,0.1,weather_forecast_south_england_shortwave_radiation,Solar and cloud forecasts,511.3135573863983,1.900058157081511
+carbon,0.1,weather_forecast_south_england_temperature_2m,Temperature forecasts,544.9353711605072,2.024997933456528
+carbon,0.1,wind_potential,Wind forecasts,2384.2922265529633,8.860109082741307
+carbon,0.1,solar_potential,Solar and cloud forecasts,367.73195028305054,1.3665041375517213
+carbon,0.1,residual_demand_proxy,Demand indicators,4155.919412136078,15.443534530094997
+carbon,0.5,horizon_minutes,Forecast lead time,799.8566150665283,0.7333138504146539
+carbon,0.5,hour_of_day,Time and calendar,4569.635099887848,4.189471771524938
+carbon,0.5,day_of_week,Time and calendar,3025.9343943595886,2.774196724803484
+carbon,0.5,month,Time and calendar,4641.343302726746,4.255214327552601
+carbon,0.5,is_bank_holiday,Time and calendar,398.4452691078186,0.3652972657413789
+carbon,0.5,price_yesterday,Recent electricity prices,77.32065868377686,0.07088809277558027
+carbon,0.5,price_last_week,Recent electricity prices,1340.2666182518005,1.2287653260587301
+carbon,0.5,carbon_yesterday,Recent carbon intensity,1482.5940527915955,1.3592520621512179
+carbon,0.5,carbon_last_week,Recent carbon intensity,1104.9943552017212,1.0130661546532742
+carbon,0.5,price_mean_24h,Recent electricity prices,4178.6564474105835,3.831019949439066
+carbon,0.5,price_mean_7d,Recent electricity prices,3480.168933868408,3.190641963717754
+carbon,0.5,carbon_mean_24h,Recent carbon intensity,3997.2187218666077,3.664676639122049
+carbon,0.5,carbon_mean_7d,Recent carbon intensity,4031.284637451172,3.6959084965008113
+carbon,0.5,demand_last_week_mw,Demand indicators,994.5183897018433,0.911781056658237
+carbon,0.5,weather_forecast_south_scotland_wind_speed_100m,Wind forecasts,2654.5195899009705,2.4336811683547808
+carbon,0.5,weather_forecast_south_scotland_wind_gusts_10m,Wind forecasts,4967.909463405609,4.554612349887678
+carbon,0.5,weather_forecast_south_scotland_cloud_cover,Solar and cloud forecasts,191.20135116577148,0.1752946670525369
+carbon,0.5,weather_forecast_south_scotland_shortwave_radiation,Solar and cloud forecasts,409.3865704536438,0.375328323392614
+carbon,0.5,weather_forecast_south_scotland_temperature_2m,Temperature forecasts,1841.1615386009216,1.6879891116416048
+carbon,0.5,weather_forecast_north_sea_wind_speed_100m,Wind forecasts,1012.1140236854553,0.9279128506122525
+carbon,0.5,weather_forecast_north_sea_wind_gusts_10m,Wind forecasts,1510.151560306549,1.3845169678392713
+carbon,0.5,weather_forecast_north_sea_cloud_cover,Solar and cloud forecasts,273.84817123413086,0.251065819915747
+carbon,0.5,weather_forecast_north_sea_shortwave_radiation,Solar and cloud forecasts,1558.0664086341858,1.4284456186215755
+carbon,0.5,weather_forecast_north_sea_temperature_2m,Temperature forecasts,3529.7110986709595,3.2360625490388046
+carbon,0.5,weather_forecast_east_anglia_wind_speed_100m,Wind forecasts,9342.524406433105,8.565288347967849
+carbon,0.5,weather_forecast_east_anglia_wind_gusts_10m,Wind forecasts,5520.914604187012,5.061611131227729
+carbon,0.5,weather_forecast_east_anglia_cloud_cover,Solar and cloud forecasts,877.5294289588928,0.8045248014214329
+carbon,0.5,weather_forecast_east_anglia_shortwave_radiation,Solar and cloud forecasts,651.625482082367,0.5974145644271263
+carbon,0.5,weather_forecast_east_anglia_temperature_2m,Temperature forecasts,2577.667058944702,2.363222258185031
+carbon,0.5,weather_forecast_south_england_wind_speed_100m,Wind forecasts,777.5634984970093,0.7128753732658752
+carbon,0.5,weather_forecast_south_england_wind_gusts_10m,Wind forecasts,1176.8694908618927,1.078961755798802
+carbon,0.5,weather_forecast_south_england_cloud_cover,Solar and cloud forecasts,189.63823080062866,0.1738615879330636
+carbon,0.5,weather_forecast_south_england_shortwave_radiation,Solar and cloud forecasts,1740.771921634674,1.5959512448883892
+carbon,0.5,weather_forecast_south_england_temperature_2m,Temperature forecasts,775.6353855133057,0.7111076664925848
+carbon,0.5,wind_potential,Wind forecasts,7410.325592517853,6.793835658436776
+carbon,0.5,solar_potential,Solar and cloud forecasts,730.6851210594177,0.6698969658708293
+carbon,0.5,residual_demand_proxy,Demand indicators,25232.196949005127,23.13304553661387
+carbon,0.9,horizon_minutes,Forecast lead time,296.37803983688354,1.0224998629322286
+carbon,0.9,hour_of_day,Time and calendar,1418.4508113861084,4.893634363114881
+carbon,0.9,day_of_week,Time and calendar,1094.3029499053955,3.775329025390743
+carbon,0.9,month,Time and calendar,702.2854999303818,2.4228746091084137
+carbon,0.9,is_bank_holiday,Time and calendar,33.1696902513504,0.1144349417864309
+carbon,0.9,price_yesterday,Recent electricity prices,174.40238988399506,0.6016856709410147
+carbon,0.9,price_last_week,Recent electricity prices,358.59987115859985,1.2371642626052357
+carbon,0.9,carbon_yesterday,Recent carbon intensity,725.6259529590607,2.503398827555013
+carbon,0.9,carbon_last_week,Recent carbon intensity,1369.144661784172,4.723528874741171
+carbon,0.9,price_mean_24h,Recent electricity prices,1738.9814100265503,5.999460197430458
+carbon,0.9,price_mean_7d,Recent electricity prices,944.171111702919,3.2573763995204783
+carbon,0.9,carbon_mean_24h,Recent carbon intensity,1096.9064639806747,3.7843111105228946
+carbon,0.9,carbon_mean_7d,Recent carbon intensity,1329.9795577526093,4.58840984390461
+carbon,0.9,demand_last_week_mw,Demand indicators,361.0274426937103,1.2455393485706965
+carbon,0.9,weather_forecast_south_scotland_wind_speed_100m,Wind forecasts,1266.2039637565613,4.368384985938513
+carbon,0.9,weather_forecast_south_scotland_wind_gusts_10m,Wind forecasts,735.7170939445496,2.5382131150108957
+carbon,0.9,weather_forecast_south_scotland_cloud_cover,Solar and cloud forecasts,267.79936003685,0.9239038394400664
+carbon,0.9,weather_forecast_south_scotland_shortwave_radiation,Solar and cloud forecasts,101.93856084346771,0.3516865303087916
+carbon,0.9,weather_forecast_south_scotland_temperature_2m,Temperature forecasts,1131.3513567447662,3.9031454821564435
+carbon,0.9,weather_forecast_north_sea_wind_speed_100m,Wind forecasts,473.2239317893982,1.6326155799438327
+carbon,0.9,weather_forecast_north_sea_wind_gusts_10m,Wind forecasts,454.5663766860962,1.5682472902207603
+carbon,0.9,weather_forecast_north_sea_cloud_cover,Solar and cloud forecasts,149.3549404144287,0.5152723399684198
+carbon,0.9,weather_forecast_north_sea_shortwave_radiation,Solar and cloud forecasts,397.7160699367523,1.372114571039367
+carbon,0.9,weather_forecast_north_sea_temperature_2m,Temperature forecasts,1178.9841938018799,4.067478066948411
+carbon,0.9,weather_forecast_east_anglia_wind_speed_100m,Wind forecasts,860.656500339508,2.9692522229825546
+carbon,0.9,weather_forecast_east_anglia_wind_gusts_10m,Wind forecasts,602.1378964185715,2.0773668551595206
+carbon,0.9,weather_forecast_east_anglia_cloud_cover,Solar and cloud forecasts,131.27311980724335,0.4528903257591764
+carbon,0.9,weather_forecast_east_anglia_shortwave_radiation,Solar and cloud forecasts,161.18396997451782,0.5560823173556418
+carbon,0.9,weather_forecast_east_anglia_temperature_2m,Temperature forecasts,1291.3388253450394,4.45509988743116
+carbon,0.9,weather_forecast_south_england_wind_speed_100m,Wind forecasts,306.6503381729126,1.0579391405736132
+carbon,0.9,weather_forecast_south_england_wind_gusts_10m,Wind forecasts,214.10802948474884,0.7386695415130433
+carbon,0.9,weather_forecast_south_england_cloud_cover,Solar and cloud forecasts,133.12786030769348,0.45928915310997764
+carbon,0.9,weather_forecast_south_england_shortwave_radiation,Solar and cloud forecasts,270.7133696079254,0.933957129449838
+carbon,0.9,weather_forecast_south_england_temperature_2m,Temperature forecasts,936.0377612113953,3.2293164603720186
+carbon,0.9,wind_potential,Wind forecasts,2274.860578775406,7.848235420100488
+carbon,0.9,solar_potential,Solar and cloud forecasts,129.90907049179077,0.44818437575407255
+carbon,0.9,residual_demand_proxy,Demand indicators,3873.352232336998,13.363008031339126

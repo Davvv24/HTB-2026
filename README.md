@@ -2,6 +2,17 @@
 
 Grid Advisor is a HackTheBurgh 2026 project that will help households choose when to run appliances by showing the trade-off between electricity cost, carbon and convenience. The first region is Edinburgh and South Scotland.
 
+## Run Step 9
+
+Generate historical recommendation explanations and model feature contributions.
+
+```bash
+python -m src.explain
+python -m src.optimiser_demo --offline --appliance washing_machine --json
+```
+
+Every optimiser plan's JSON output includes a computed `why` sentence. Detailed model contributions and example recommendations are saved in `results/step9/`. See [Step 9](docs/STEP9.md) for interpretation, limitations and the Python integration interface.
+
 ## Run Step 8
 
 Run the 90-day historical replay using the committed dataset and features.

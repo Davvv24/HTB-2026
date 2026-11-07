@@ -166,7 +166,10 @@ class Plan:
 
     def to_dict(self):
         """JSON-ready summary in the /api/recommend shape. Times are UTC ISO strings."""
+        from src.explain import explain_plan
+
         return {
+            "why": explain_plan(self),
             "appliance": self.appliance,
             "start": _iso(self.start_utc),
             "end": _iso(self.end_utc),
@@ -389,7 +392,10 @@ class BatteryPlan:
 
     def to_dict(self):
         """JSON-ready summary with the per-slot schedule. Times are UTC ISO strings."""
+        from src.explain import explain_battery
+
         return {
+            "why": explain_battery(self),
             "next_action": self.next_action,
             "cost_without_gbp": round(self.cost_without_p / 100, 2),
             "cost_with_gbp": round(self.cost_with_p / 100, 2),

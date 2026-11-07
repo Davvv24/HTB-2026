@@ -1,0 +1,1425 @@
+{
+  "forecast_at_utc": "2026-11-03T15:00:00+00:00",
+  "historical_demo": true,
+  "model_dir": "results\\step8\\models",
+  "carbon_weight": 0.0,
+  "risk_aversion": 0.5,
+  "recommendations": [
+    {
+      "why": "For this schedule, the estimated cost is 0.10 GBP less and emissions are 0.039 kg CO2 less compared with starting at the earliest available slot, with recent electricity prices contributing 0.06 GBP lower to the model's cost comparison.",
+      "appliance": "Washing machine",
+      "start": "2026-11-04T03:00:00Z",
+      "end": "2026-11-04T05:00:00Z",
+      "blocks": [
+        {
+          "start": "2026-11-04T03:00:00Z",
+          "end": "2026-11-04T05:00:00Z"
+        }
+      ],
+      "energy_kwh": 1.0,
+      "cost_gbp": 0.26,
+      "co2_kg": 0.137,
+      "run_now": {
+        "start": "2026-11-03T15:00:00Z",
+        "cost_gbp": 0.36,
+        "co2_kg": 0.176
+      },
+      "saving_gbp": 0.1,
+      "saving_co2_kg": 0.039,
+      "uses_forecast": true,
+      "alternatives": [
+        {
+          "why": "For this schedule, the estimated cost is 0.10 GBP less and emissions are 0.037 kg CO2 less compared with starting at the earliest available slot.",
+          "appliance": "Washing machine",
+          "start": "2026-11-03T22:30:00Z",
+          "end": "2026-11-04T00:30:00Z",
+          "blocks": [
+            {
+              "start": "2026-11-03T22:30:00Z",
+              "end": "2026-11-04T00:30:00Z"
+            }
+          ],
+          "energy_kwh": 1.0,
+          "cost_gbp": 0.25,
+          "co2_kg": 0.139,
+          "run_now": {
+            "start": "2026-11-03T15:00:00Z",
+            "cost_gbp": 0.36,
+            "co2_kg": 0.176
+          },
+          "saving_gbp": 0.1,
+          "saving_co2_kg": 0.037,
+          "uses_forecast": true,
+          "alternatives": []
+        },
+        {
+          "why": "For this schedule, the estimated cost is 0.08 GBP less and emissions are 0.052 kg CO2 less compared with starting at the earliest available slot.",
+          "appliance": "Washing machine",
+          "start": "2026-11-04T05:00:00Z",
+          "end": "2026-11-04T07:00:00Z",
+          "blocks": [
+            {
+              "start": "2026-11-04T05:00:00Z",
+              "end": "2026-11-04T07:00:00Z"
+            }
+          ],
+          "energy_kwh": 1.0,
+          "cost_gbp": 0.28,
+          "co2_kg": 0.124,
+          "run_now": {
+            "start": "2026-11-03T15:00:00Z",
+            "cost_gbp": 0.36,
+            "co2_kg": 0.176
+          },
+          "saving_gbp": 0.08,
+          "saving_co2_kg": 0.052,
+          "uses_forecast": true,
+          "alternatives": []
+        }
+      ],
+      "model_drivers": {
+        "price": {
+          "status": "explained",
+          "unit": "GBP",
+          "recommended_minus_run_now": -0.09751670700072143,
+          "drivers": [
+            {
+              "factor": "Recent electricity prices",
+              "contribution": -0.05512199986679
+            },
+            {
+              "factor": "Time and calendar",
+              "contribution": -0.04239344498106547
+            },
+            {
+              "factor": "Wind forecasts",
+              "contribution": 0.009046275331474327
+            },
+            {
+              "factor": "Demand indicators",
+              "contribution": -0.0077432062275651845
+            },
+            {
+              "factor": "Solar and cloud forecasts",
+              "contribution": -0.001420597318696911
+            },
+            {
+              "factor": "Temperature forecasts",
+              "contribution": 0.00043344268680178344
+            },
+            {
+              "factor": "Recent carbon intensity",
+              "contribution": -0.00025280170757961413
+            },
+            {
+              "factor": "Forecast lead time",
+              "contribution": -6.437491730037978e-05
+            },
+            {
+              "factor": "Model reference value",
+              "contribution": 0.0
+            },
+            {
+              "factor": "Non-negative carbon adjustment",
+              "contribution": 0.0
+            }
+          ]
+        },
+        "carbon": {
+          "status": "explained",
+          "unit": "kg CO2",
+          "recommended_minus_run_now": -0.03948107363247273,
+          "drivers": [
+            {
+              "factor": "Demand indicators",
+              "contribution": -0.03209645329021893
+            },
+            {
+              "factor": "Time and calendar",
+              "contribution": -0.006929875467395995
+            },
+            {
+              "factor": "Wind forecasts",
+              "contribution": 0.004644857420408091
+            },
+            {
+              "factor": "Recent carbon intensity",
+              "contribution": -0.003752390934416839
+            },
+            {
+              "factor": "Solar and cloud forecasts",
+              "contribution": 0.0032500789739361297
+            },
+            {
+              "factor": "Recent electricity prices",
+              "contribution": -0.0029554867703311
+            },
+            {
+              "factor": "Forecast lead time",
+              "contribution": -0.00156389355205124
+            },
+            {
+              "factor": "Temperature forecasts",
+              "contribution": -7.791001240284952e-05
+            },
+            {
+              "factor": "Model reference value",
+              "contribution": 0.0
+            },
+            {
+              "factor": "Non-negative carbon adjustment",
+              "contribution": 0.0
+            }
+          ]
+        }
+      },
+      "interpretation": "Signed contributions explain the model's median difference between schedules. Negative values lower predicted cost or emissions. They are model associations, not causal effects or an explanation of the uncertainty penalty."
+    },
+    {
+      "why": "For this schedule, the estimated cost is 0.12 GBP less and emissions are 0.047 kg CO2 less compared with starting at the earliest available slot, with recent electricity prices contributing 0.07 GBP lower to the model's cost comparison.",
+      "appliance": "Dishwasher",
+      "start": "2026-11-04T03:00:00Z",
+      "end": "2026-11-04T05:00:00Z",
+      "blocks": [
+        {
+          "start": "2026-11-04T03:00:00Z",
+          "end": "2026-11-04T05:00:00Z"
+        }
+      ],
+      "energy_kwh": 1.2,
+      "cost_gbp": 0.31,
+      "co2_kg": 0.164,
+      "run_now": {
+        "start": "2026-11-03T15:00:00Z",
+        "cost_gbp": 0.43,
+        "co2_kg": 0.211
+      },
+      "saving_gbp": 0.12,
+      "saving_co2_kg": 0.047,
+      "uses_forecast": true,
+      "alternatives": [
+        {
+          "why": "For this schedule, the estimated cost is 0.13 GBP less and emissions are 0.044 kg CO2 less compared with starting at the earliest available slot.",
+          "appliance": "Dishwasher",
+          "start": "2026-11-03T22:30:00Z",
+          "end": "2026-11-04T00:30:00Z",
+          "blocks": [
+            {
+              "start": "2026-11-03T22:30:00Z",
+              "end": "2026-11-04T00:30:00Z"
+            }
+          ],
+          "energy_kwh": 1.2,
+          "cost_gbp": 0.31,
+          "co2_kg": 0.167,
+          "run_now": {
+            "start": "2026-11-03T15:00:00Z",
+            "cost_gbp": 0.43,
+            "co2_kg": 0.211
+          },
+          "saving_gbp": 0.13,
+          "saving_co2_kg": 0.044,
+          "uses_forecast": true,
+          "alternatives": []
+        },
+        {
+          "why": "For this schedule, the estimated cost is 0.09 GBP less and emissions are 0.063 kg CO2 less compared with starting at the earliest available slot.",
+          "appliance": "Dishwasher",
+          "start": "2026-11-04T05:00:00Z",
+          "end": "2026-11-04T07:00:00Z",
+          "blocks": [
+            {
+              "start": "2026-11-04T05:00:00Z",
+              "end": "2026-11-04T07:00:00Z"
+            }
+          ],
+          "energy_kwh": 1.2,
+          "cost_gbp": 0.34,
+          "co2_kg": 0.149,
+          "run_now": {
+            "start": "2026-11-03T15:00:00Z",
+            "cost_gbp": 0.43,
+            "co2_kg": 0.211
+          },
+          "saving_gbp": 0.09,
+          "saving_co2_kg": 0.063,
+          "uses_forecast": true,
+          "alternatives": []
+        }
+      ],
+      "model_drivers": {
+        "price": {
+          "status": "explained",
+          "unit": "GBP",
+          "recommended_minus_run_now": -0.1170200484008658,
+          "drivers": [
+            {
+              "factor": "Recent electricity prices",
+              "contribution": -0.066146399840148
+            },
+            {
+              "factor": "Time and calendar",
+              "contribution": -0.05087213397727857
+            },
+            {
+              "factor": "Wind forecasts",
+              "contribution": 0.010855530397769193
+            },
+            {
+              "factor": "Demand indicators",
+              "contribution": -0.009291847473078223
+            },
+            {
+              "factor": "Solar and cloud forecasts",
+              "contribution": -0.0017047167824362941
+            },
+            {
+              "factor": "Temperature forecasts",
+              "contribution": 0.0005201312241621401
+            },
+            {
+              "factor": "Recent carbon intensity",
+              "contribution": -0.0003033620490955375
+            },
+            {
+              "factor": "Forecast lead time",
+              "contribution": -7.72499007604558e-05
+            },
+            {
+              "factor": "Model reference value",
+              "contribution": -3.552713678800501e-17
+            },
+            {
+              "factor": "Non-negative carbon adjustment",
+              "contribution": 0.0
+            }
+          ]
+        },
+        "carbon": {
+          "status": "explained",
+          "unit": "kg CO2",
+          "recommended_minus_run_now": -0.04737728835896731,
+          "drivers": [
+            {
+              "factor": "Demand indicators",
+              "contribution": -0.038515743948262716
+            },
+            {
+              "factor": "Time and calendar",
+              "contribution": -0.008315850560875193
+            },
+            {
+              "factor": "Wind forecasts",
+              "contribution": 0.005573828904489704
+            },
+            {
+              "factor": "Recent carbon intensity",
+              "contribution": -0.0045028691213002065
+            },
+            {
+              "factor": "Solar and cloud forecasts",
+              "contribution": 0.0039000947687233556
+            },
+            {
+              "factor": "Recent electricity prices",
+              "contribution": -0.003546584124397319
+            },
+            {
+              "factor": "Forecast lead time",
+              "contribution": -0.0018766722624614888
+            },
+            {
+              "factor": "Temperature forecasts",
+              "contribution": -9.349201488341951e-05
+            },
+            {
+              "factor": "Model reference value",
+              "contribution": -2.842170943040401e-17
+            },
+            {
+              "factor": "Non-negative carbon adjustment",
+              "contribution": 0.0
+            }
+          ]
+        }
+      },
+      "interpretation": "Signed contributions explain the model's median difference between schedules. Negative values lower predicted cost or emissions. They are model associations, not causal effects or an explanation of the uncertainty penalty."
+    },
+    {
+      "why": "For this schedule, the estimated cost is 0.21 GBP less and emissions are 0.102 kg CO2 less compared with starting at the earliest available slot, with recent electricity prices contributing 0.12 GBP lower to the model's cost comparison.",
+      "appliance": "Tumble dryer",
+      "start": "2026-11-04T03:30:00Z",
+      "end": "2026-11-04T05:00:00Z",
+      "blocks": [
+        {
+          "start": "2026-11-04T03:30:00Z",
+          "end": "2026-11-04T05:00:00Z"
+        }
+      ],
+      "energy_kwh": 3.0,
+      "cost_gbp": 0.78,
+      "co2_kg": 0.411,
+      "run_now": {
+        "start": "2026-11-03T15:00:00Z",
+        "cost_gbp": 0.99,
+        "co2_kg": 0.513
+      },
+      "saving_gbp": 0.21,
+      "saving_co2_kg": 0.102,
+      "uses_forecast": true,
+      "alternatives": [
+        {
+          "why": "For this schedule, the estimated cost is 0.21 GBP less and emissions are 0.094 kg CO2 less compared with starting at the earliest available slot.",
+          "appliance": "Tumble dryer",
+          "start": "2026-11-03T23:30:00Z",
+          "end": "2026-11-04T01:00:00Z",
+          "blocks": [
+            {
+              "start": "2026-11-03T23:30:00Z",
+              "end": "2026-11-04T01:00:00Z"
+            }
+          ],
+          "energy_kwh": 3.0,
+          "cost_gbp": 0.78,
+          "co2_kg": 0.419,
+          "run_now": {
+            "start": "2026-11-03T15:00:00Z",
+            "cost_gbp": 0.99,
+            "co2_kg": 0.513
+          },
+          "saving_gbp": 0.21,
+          "saving_co2_kg": 0.094,
+          "uses_forecast": true,
+          "alternatives": []
+        },
+        {
+          "why": "For this schedule, the estimated cost is 0.16 GBP less and emissions are 0.155 kg CO2 less compared with starting at the earliest available slot.",
+          "appliance": "Tumble dryer",
+          "start": "2026-11-04T05:00:00Z",
+          "end": "2026-11-04T06:30:00Z",
+          "blocks": [
+            {
+              "start": "2026-11-04T05:00:00Z",
+              "end": "2026-11-04T06:30:00Z"
+            }
+          ],
+          "energy_kwh": 3.0,
+          "cost_gbp": 0.83,
+          "co2_kg": 0.358,
+          "run_now": {
+            "start": "2026-11-03T15:00:00Z",
+            "cost_gbp": 0.99,
+            "co2_kg": 0.513
+          },
+          "saving_gbp": 0.16,
+          "saving_co2_kg": 0.155,
+          "uses_forecast": true,
+          "alternatives": []
+        }
+      ],
+      "model_drivers": {
+        "price": {
+          "status": "explained",
+          "unit": "GBP",
+          "recommended_minus_run_now": -0.20752088547146913,
+          "drivers": [
+            {
+              "factor": "Recent electricity prices",
+              "contribution": -0.11597570689825377
+            },
+            {
+              "factor": "Time and calendar",
+              "contribution": -0.09847931467026567
+            },
+            {
+              "factor": "Wind forecasts",
+              "contribution": 0.028773951108772303
+            },
+            {
+              "factor": "Demand indicators",
+              "contribution": -0.021005439230624832
+            },
+            {
+              "factor": "Solar and cloud forecasts",
+              "contribution": -0.0023158716221507378
+            },
+            {
+              "factor": "Temperature forecasts",
+              "contribution": 0.001774336831310436
+            },
+            {
+              "factor": "Recent carbon intensity",
+              "contribution": -0.00023654209243273785
+            },
+            {
+              "factor": "Forecast lead time",
+              "contribution": -5.6298897824117456e-05
+            },
+            {
+              "factor": "Model reference value",
+              "contribution": 0.0
+            },
+            {
+              "factor": "Non-negative carbon adjustment",
+              "contribution": 0.0
+            }
+          ]
+        },
+        "carbon": {
+          "status": "explained",
+          "unit": "kg CO2",
+          "recommended_minus_run_now": -0.10182363399717097,
+          "drivers": [
+            {
+              "factor": "Demand indicators",
+              "contribution": -0.08581541878159618
+            },
+            {
+              "factor": "Time and calendar",
+              "contribution": -0.0188223234032092
+            },
+            {
+              "factor": "Wind forecasts",
+              "contribution": 0.01694542709035484
+            },
+            {
+              "factor": "Recent carbon intensity",
+              "contribution": -0.011809424811647932
+            },
+            {
+              "factor": "Solar and cloud forecasts",
+              "contribution": 0.010793884753065239
+            },
+            {
+              "factor": "Recent electricity prices",
+              "contribution": -0.00918922045812387
+            },
+            {
+              "factor": "Forecast lead time",
+              "contribution": -0.004632544984675059
+            },
+            {
+              "factor": "Temperature forecasts",
+              "contribution": 0.0007059865986612042
+            },
+            {
+              "factor": "Model reference value",
+              "contribution": 0.0
+            },
+            {
+              "factor": "Non-negative carbon adjustment",
+              "contribution": 0.0
+            }
+          ]
+        }
+      },
+      "interpretation": "Signed contributions explain the model's median difference between schedules. Negative values lower predicted cost or emissions. They are model associations, not causal effects or an explanation of the uncertainty penalty."
+    },
+    {
+      "why": "For this schedule, the estimated cost is 2.58 GBP less and emissions are 0.920 kg CO2 less compared with starting at the earliest available slot, with recent electricity prices contributing 1.49 GBP lower to the model's cost comparison.",
+      "appliance": "EV charging (20 kWh)",
+      "start": "2026-11-03T23:30:00Z",
+      "end": "2026-11-04T05:00:00Z",
+      "blocks": [
+        {
+          "start": "2026-11-03T23:30:00Z",
+          "end": "2026-11-04T00:30:00Z"
+        },
+        {
+          "start": "2026-11-04T03:00:00Z",
+          "end": "2026-11-04T05:00:00Z"
+        }
+      ],
+      "energy_kwh": 20.0,
+      "cost_gbp": 5.14,
+      "co2_kg": 2.752,
+      "run_now": {
+        "start": "2026-11-03T15:00:00Z",
+        "cost_gbp": 7.72,
+        "co2_kg": 3.672
+      },
+      "saving_gbp": 2.58,
+      "saving_co2_kg": 0.92,
+      "uses_forecast": true,
+      "alternatives": [],
+      "model_drivers": {
+        "price": {
+          "status": "explained",
+          "unit": "GBP",
+          "recommended_minus_run_now": -2.5799269425485645,
+          "drivers": [
+            {
+              "factor": "Recent electricity prices",
+              "contribution": -1.4904302978644164
+            },
+            {
+              "factor": "Time and calendar",
+              "contribution": -1.0025764170569187
+            },
+            {
+              "factor": "Demand indicators",
+              "contribution": -0.13660781491857593
+            },
+            {
+              "factor": "Wind forecasts",
+              "contribution": 0.10775208051362142
+            },
+            {
+              "factor": "Solar and cloud forecasts",
+              "contribution": -0.04795659419691449
+            },
+            {
+              "factor": "Recent carbon intensity",
+              "contribution": -0.00961053146868786
+            },
+            {
+              "factor": "Forecast lead time",
+              "contribution": -0.0011887733295134462
+            },
+            {
+              "factor": "Temperature forecasts",
+              "contribution": 0.0006914057728414549
+            },
+            {
+              "factor": "Model reference value",
+              "contribution": -5.684341886080802e-16
+            },
+            {
+              "factor": "Non-negative carbon adjustment",
+              "contribution": 0.0
+            }
+          ]
+        },
+        "carbon": {
+          "status": "explained",
+          "unit": "kg CO2",
+          "recommended_minus_run_now": -0.9201261976547895,
+          "drivers": [
+            {
+              "factor": "Demand indicators",
+              "contribution": -0.656753546900096
+            },
+            {
+              "factor": "Time and calendar",
+              "contribution": -0.15762605847830957
+            },
+            {
+              "factor": "Recent carbon intensity",
+              "contribution": -0.05734239530659676
+            },
+            {
+              "factor": "Recent electricity prices",
+              "contribution": -0.04537517939930959
+            },
+            {
+              "factor": "Solar and cloud forecasts",
+              "contribution": 0.043564610184824604
+            },
+            {
+              "factor": "Forecast lead time",
+              "contribution": -0.03237507279956561
+            },
+            {
+              "factor": "Wind forecasts",
+              "contribution": -0.009092850686774276
+            },
+            {
+              "factor": "Temperature forecasts",
+              "contribution": -0.005125704268962241
+            },
+            {
+              "factor": "Model reference value",
+              "contribution": 0.0
+            },
+            {
+              "factor": "Non-negative carbon adjustment",
+              "contribution": 0.0
+            }
+          ]
+        }
+      },
+      "interpretation": "Signed contributions explain the model's median difference between schedules. Negative values lower predicted cost or emissions. They are model associations, not causal effects or an explanation of the uncertainty penalty."
+    },
+    {
+      "appliance": "battery",
+      "why": "The battery plan starts with hold and estimates the same GBP to the displayed precision in cost after degradation and the same kg CO2 to the displayed precision in emissions compared with the same load without a battery.",
+      "next_action": "hold",
+      "cost_without_gbp": 5.47,
+      "cost_with_gbp": 5.47,
+      "degradation_gbp": 0.0,
+      "saving_gbp": 0.0,
+      "saving_co2_kg": 0.0,
+      "uses_forecast": false,
+      "schedule": [
+        {
+          "time": "2026-11-03T15:00:00Z",
+          "charge_kwh": 0.0,
+          "discharge_kwh": 0.0,
+          "stored_kwh": 5.0,
+          "load_kwh": 0.125,
+          "grid_kwh": 0.125
+        },
+        {
+          "time": "2026-11-03T15:30:00Z",
+          "charge_kwh": 0.0,
+          "discharge_kwh": 0.0,
+          "stored_kwh": 5.0,
+          "load_kwh": 0.125,
+          "grid_kwh": 0.125
+        },
+        {
+          "time": "2026-11-03T16:00:00Z",
+          "charge_kwh": 0.0,
+          "discharge_kwh": 0.0,
+          "stored_kwh": 5.0,
+          "load_kwh": 0.25,
+          "grid_kwh": 0.25
+        },
+        {
+          "time": "2026-11-03T16:30:00Z",
+          "charge_kwh": 0.0,
+          "discharge_kwh": 0.0,
+          "stored_kwh": 5.0,
+          "load_kwh": 0.25,
+          "grid_kwh": 0.25
+        },
+        {
+          "time": "2026-11-03T17:00:00Z",
+          "charge_kwh": 0.0,
+          "discharge_kwh": 0.0,
+          "stored_kwh": 5.0,
+          "load_kwh": 0.35,
+          "grid_kwh": 0.35
+        },
+        {
+          "time": "2026-11-03T17:30:00Z",
+          "charge_kwh": 0.0,
+          "discharge_kwh": 0.0,
+          "stored_kwh": 5.0,
+          "load_kwh": 0.35,
+          "grid_kwh": 0.35
+        },
+        {
+          "time": "2026-11-03T18:00:00Z",
+          "charge_kwh": 0.0,
+          "discharge_kwh": 0.0,
+          "stored_kwh": 5.0,
+          "load_kwh": 0.35,
+          "grid_kwh": 0.35
+        },
+        {
+          "time": "2026-11-03T18:30:00Z",
+          "charge_kwh": 0.0,
+          "discharge_kwh": 0.0,
+          "stored_kwh": 5.0,
+          "load_kwh": 0.35,
+          "grid_kwh": 0.35
+        },
+        {
+          "time": "2026-11-03T19:00:00Z",
+          "charge_kwh": 0.0,
+          "discharge_kwh": 0.0,
+          "stored_kwh": 5.0,
+          "load_kwh": 0.35,
+          "grid_kwh": 0.35
+        },
+        {
+          "time": "2026-11-03T19:30:00Z",
+          "charge_kwh": 0.0,
+          "discharge_kwh": 0.0,
+          "stored_kwh": 5.0,
+          "load_kwh": 0.35,
+          "grid_kwh": 0.35
+        },
+        {
+          "time": "2026-11-03T20:00:00Z",
+          "charge_kwh": 0.0,
+          "discharge_kwh": 0.0,
+          "stored_kwh": 5.0,
+          "load_kwh": 0.35,
+          "grid_kwh": 0.35
+        },
+        {
+          "time": "2026-11-03T20:30:00Z",
+          "charge_kwh": 0.0,
+          "discharge_kwh": 0.0,
+          "stored_kwh": 5.0,
+          "load_kwh": 0.35,
+          "grid_kwh": 0.35
+        },
+        {
+          "time": "2026-11-03T21:00:00Z",
+          "charge_kwh": 0.0,
+          "discharge_kwh": 0.0,
+          "stored_kwh": 5.0,
+          "load_kwh": 0.2,
+          "grid_kwh": 0.2
+        },
+        {
+          "time": "2026-11-03T21:30:00Z",
+          "charge_kwh": 0.0,
+          "discharge_kwh": 0.0,
+          "stored_kwh": 5.0,
+          "load_kwh": 0.2,
+          "grid_kwh": 0.2
+        },
+        {
+          "time": "2026-11-03T22:00:00Z",
+          "charge_kwh": 0.0,
+          "discharge_kwh": 0.0,
+          "stored_kwh": 5.0,
+          "load_kwh": 0.2,
+          "grid_kwh": 0.2
+        },
+        {
+          "time": "2026-11-03T22:30:00Z",
+          "charge_kwh": 0.0,
+          "discharge_kwh": 0.0,
+          "stored_kwh": 5.0,
+          "load_kwh": 0.2,
+          "grid_kwh": 0.2
+        },
+        {
+          "time": "2026-11-03T23:00:00Z",
+          "charge_kwh": 0.0,
+          "discharge_kwh": 0.0,
+          "stored_kwh": 5.0,
+          "load_kwh": 0.125,
+          "grid_kwh": 0.125
+        },
+        {
+          "time": "2026-11-03T23:30:00Z",
+          "charge_kwh": 0.0,
+          "discharge_kwh": 0.0,
+          "stored_kwh": 5.0,
+          "load_kwh": 0.125,
+          "grid_kwh": 0.125
+        },
+        {
+          "time": "2026-11-04T00:00:00Z",
+          "charge_kwh": 0.0,
+          "discharge_kwh": 0.0,
+          "stored_kwh": 5.0,
+          "load_kwh": 0.1,
+          "grid_kwh": 0.1
+        },
+        {
+          "time": "2026-11-04T00:30:00Z",
+          "charge_kwh": 0.0,
+          "discharge_kwh": 0.0,
+          "stored_kwh": 5.0,
+          "load_kwh": 0.1,
+          "grid_kwh": 0.1
+        },
+        {
+          "time": "2026-11-04T01:00:00Z",
+          "charge_kwh": 0.0,
+          "discharge_kwh": 0.0,
+          "stored_kwh": 5.0,
+          "load_kwh": 0.1,
+          "grid_kwh": 0.1
+        },
+        {
+          "time": "2026-11-04T01:30:00Z",
+          "charge_kwh": 0.0,
+          "discharge_kwh": 0.0,
+          "stored_kwh": 5.0,
+          "load_kwh": 0.1,
+          "grid_kwh": 0.1
+        },
+        {
+          "time": "2026-11-04T02:00:00Z",
+          "charge_kwh": 0.0,
+          "discharge_kwh": 0.0,
+          "stored_kwh": 5.0,
+          "load_kwh": 0.1,
+          "grid_kwh": 0.1
+        },
+        {
+          "time": "2026-11-04T02:30:00Z",
+          "charge_kwh": 0.0,
+          "discharge_kwh": 0.0,
+          "stored_kwh": 5.0,
+          "load_kwh": 0.1,
+          "grid_kwh": 0.1
+        },
+        {
+          "time": "2026-11-04T03:00:00Z",
+          "charge_kwh": 0.0,
+          "discharge_kwh": 0.0,
+          "stored_kwh": 5.0,
+          "load_kwh": 0.1,
+          "grid_kwh": 0.1
+        },
+        {
+          "time": "2026-11-04T03:30:00Z",
+          "charge_kwh": 0.0,
+          "discharge_kwh": 0.0,
+          "stored_kwh": 5.0,
+          "load_kwh": 0.1,
+          "grid_kwh": 0.1
+        },
+        {
+          "time": "2026-11-04T04:00:00Z",
+          "charge_kwh": 0.0,
+          "discharge_kwh": 0.0,
+          "stored_kwh": 5.0,
+          "load_kwh": 0.1,
+          "grid_kwh": 0.1
+        },
+        {
+          "time": "2026-11-04T04:30:00Z",
+          "charge_kwh": 0.0,
+          "discharge_kwh": 0.0,
+          "stored_kwh": 5.0,
+          "load_kwh": 0.1,
+          "grid_kwh": 0.1
+        },
+        {
+          "time": "2026-11-04T05:00:00Z",
+          "charge_kwh": 0.0,
+          "discharge_kwh": 0.0,
+          "stored_kwh": 5.0,
+          "load_kwh": 0.1,
+          "grid_kwh": 0.1
+        },
+        {
+          "time": "2026-11-04T05:30:00Z",
+          "charge_kwh": 0.0,
+          "discharge_kwh": 0.0,
+          "stored_kwh": 5.0,
+          "load_kwh": 0.1,
+          "grid_kwh": 0.1
+        },
+        {
+          "time": "2026-11-04T06:00:00Z",
+          "charge_kwh": 0.0,
+          "discharge_kwh": 0.0,
+          "stored_kwh": 5.0,
+          "load_kwh": 0.15,
+          "grid_kwh": 0.15
+        },
+        {
+          "time": "2026-11-04T06:30:00Z",
+          "charge_kwh": 0.0,
+          "discharge_kwh": 0.0,
+          "stored_kwh": 5.0,
+          "load_kwh": 0.15,
+          "grid_kwh": 0.15
+        },
+        {
+          "time": "2026-11-04T07:00:00Z",
+          "charge_kwh": 0.0,
+          "discharge_kwh": 0.0,
+          "stored_kwh": 5.0,
+          "load_kwh": 0.25,
+          "grid_kwh": 0.25
+        },
+        {
+          "time": "2026-11-04T07:30:00Z",
+          "charge_kwh": 0.0,
+          "discharge_kwh": 0.0,
+          "stored_kwh": 5.0,
+          "load_kwh": 0.25,
+          "grid_kwh": 0.25
+        },
+        {
+          "time": "2026-11-04T08:00:00Z",
+          "charge_kwh": 0.0,
+          "discharge_kwh": 0.0,
+          "stored_kwh": 5.0,
+          "load_kwh": 0.25,
+          "grid_kwh": 0.25
+        },
+        {
+          "time": "2026-11-04T08:30:00Z",
+          "charge_kwh": 0.0,
+          "discharge_kwh": 0.0,
+          "stored_kwh": 5.0,
+          "load_kwh": 0.25,
+          "grid_kwh": 0.25
+        },
+        {
+          "time": "2026-11-04T09:00:00Z",
+          "charge_kwh": 0.0,
+          "discharge_kwh": 0.0,
+          "stored_kwh": 5.0,
+          "load_kwh": 0.125,
+          "grid_kwh": 0.125
+        },
+        {
+          "time": "2026-11-04T09:30:00Z",
+          "charge_kwh": 0.0,
+          "discharge_kwh": 0.0,
+          "stored_kwh": 5.0,
+          "load_kwh": 0.125,
+          "grid_kwh": 0.125
+        },
+        {
+          "time": "2026-11-04T10:00:00Z",
+          "charge_kwh": 0.0,
+          "discharge_kwh": 0.0,
+          "stored_kwh": 5.0,
+          "load_kwh": 0.125,
+          "grid_kwh": 0.125
+        },
+        {
+          "time": "2026-11-04T10:30:00Z",
+          "charge_kwh": 0.0,
+          "discharge_kwh": 0.0,
+          "stored_kwh": 5.0,
+          "load_kwh": 0.125,
+          "grid_kwh": 0.125
+        },
+        {
+          "time": "2026-11-04T11:00:00Z",
+          "charge_kwh": 0.0,
+          "discharge_kwh": 0.0,
+          "stored_kwh": 5.0,
+          "load_kwh": 0.125,
+          "grid_kwh": 0.125
+        },
+        {
+          "time": "2026-11-04T11:30:00Z",
+          "charge_kwh": 0.0,
+          "discharge_kwh": 0.0,
+          "stored_kwh": 5.0,
+          "load_kwh": 0.125,
+          "grid_kwh": 0.125
+        },
+        {
+          "time": "2026-11-04T12:00:00Z",
+          "charge_kwh": 0.0,
+          "discharge_kwh": 0.0,
+          "stored_kwh": 5.0,
+          "load_kwh": 0.125,
+          "grid_kwh": 0.125
+        },
+        {
+          "time": "2026-11-04T12:30:00Z",
+          "charge_kwh": 0.0,
+          "discharge_kwh": 0.0,
+          "stored_kwh": 5.0,
+          "load_kwh": 0.125,
+          "grid_kwh": 0.125
+        },
+        {
+          "time": "2026-11-04T13:00:00Z",
+          "charge_kwh": 0.0,
+          "discharge_kwh": 0.0,
+          "stored_kwh": 5.0,
+          "load_kwh": 0.125,
+          "grid_kwh": 0.125
+        },
+        {
+          "time": "2026-11-04T13:30:00Z",
+          "charge_kwh": 0.0,
+          "discharge_kwh": 0.0,
+          "stored_kwh": 5.0,
+          "load_kwh": 0.125,
+          "grid_kwh": 0.125
+        },
+        {
+          "time": "2026-11-04T14:00:00Z",
+          "charge_kwh": 0.0,
+          "discharge_kwh": 0.0,
+          "stored_kwh": 5.0,
+          "load_kwh": 0.125,
+          "grid_kwh": 0.125
+        },
+        {
+          "time": "2026-11-04T14:30:00Z",
+          "charge_kwh": 0.0,
+          "discharge_kwh": 0.0,
+          "stored_kwh": 5.0,
+          "load_kwh": 0.125,
+          "grid_kwh": 0.125
+        },
+        {
+          "time": "2026-11-04T15:00:00Z",
+          "charge_kwh": 0.0,
+          "discharge_kwh": 0.0,
+          "stored_kwh": 5.0,
+          "load_kwh": 0.125,
+          "grid_kwh": 0.125
+        },
+        {
+          "time": "2026-11-04T15:30:00Z",
+          "charge_kwh": 0.0,
+          "discharge_kwh": 0.0,
+          "stored_kwh": 5.0,
+          "load_kwh": 0.125,
+          "grid_kwh": 0.125
+        },
+        {
+          "time": "2026-11-04T16:00:00Z",
+          "charge_kwh": 0.0,
+          "discharge_kwh": 0.0,
+          "stored_kwh": 5.0,
+          "load_kwh": 0.25,
+          "grid_kwh": 0.25
+        },
+        {
+          "time": "2026-11-04T16:30:00Z",
+          "charge_kwh": 0.0,
+          "discharge_kwh": 0.0,
+          "stored_kwh": 5.0,
+          "load_kwh": 0.25,
+          "grid_kwh": 0.25
+        },
+        {
+          "time": "2026-11-04T17:00:00Z",
+          "charge_kwh": 0.0,
+          "discharge_kwh": 0.0,
+          "stored_kwh": 5.0,
+          "load_kwh": 0.35,
+          "grid_kwh": 0.35
+        },
+        {
+          "time": "2026-11-04T17:30:00Z",
+          "charge_kwh": 0.0,
+          "discharge_kwh": 0.0,
+          "stored_kwh": 5.0,
+          "load_kwh": 0.35,
+          "grid_kwh": 0.35
+        },
+        {
+          "time": "2026-11-04T18:00:00Z",
+          "charge_kwh": 0.0,
+          "discharge_kwh": 0.0,
+          "stored_kwh": 5.0,
+          "load_kwh": 0.35,
+          "grid_kwh": 0.35
+        },
+        {
+          "time": "2026-11-04T18:30:00Z",
+          "charge_kwh": 0.0,
+          "discharge_kwh": 0.0,
+          "stored_kwh": 5.0,
+          "load_kwh": 0.35,
+          "grid_kwh": 0.35
+        },
+        {
+          "time": "2026-11-04T19:00:00Z",
+          "charge_kwh": 0.0,
+          "discharge_kwh": 0.0,
+          "stored_kwh": 5.0,
+          "load_kwh": 0.35,
+          "grid_kwh": 0.35
+        },
+        {
+          "time": "2026-11-04T19:30:00Z",
+          "charge_kwh": 0.0,
+          "discharge_kwh": 0.0,
+          "stored_kwh": 5.0,
+          "load_kwh": 0.35,
+          "grid_kwh": 0.35
+        },
+        {
+          "time": "2026-11-04T20:00:00Z",
+          "charge_kwh": 0.0,
+          "discharge_kwh": 0.0,
+          "stored_kwh": 5.0,
+          "load_kwh": 0.35,
+          "grid_kwh": 0.35
+        },
+        {
+          "time": "2026-11-04T20:30:00Z",
+          "charge_kwh": 0.0,
+          "discharge_kwh": 0.0,
+          "stored_kwh": 5.0,
+          "load_kwh": 0.35,
+          "grid_kwh": 0.35
+        },
+        {
+          "time": "2026-11-04T21:00:00Z",
+          "charge_kwh": 0.0,
+          "discharge_kwh": 0.0,
+          "stored_kwh": 5.0,
+          "load_kwh": 0.2,
+          "grid_kwh": 0.2
+        },
+        {
+          "time": "2026-11-04T21:30:00Z",
+          "charge_kwh": 0.0,
+          "discharge_kwh": 0.0,
+          "stored_kwh": 5.0,
+          "load_kwh": 0.2,
+          "grid_kwh": 0.2
+        },
+        {
+          "time": "2026-11-04T22:00:00Z",
+          "charge_kwh": 0.0,
+          "discharge_kwh": 0.0,
+          "stored_kwh": 5.0,
+          "load_kwh": 0.2,
+          "grid_kwh": 0.2
+        },
+        {
+          "time": "2026-11-04T22:30:00Z",
+          "charge_kwh": 0.0,
+          "discharge_kwh": 0.0,
+          "stored_kwh": 5.0,
+          "load_kwh": 0.2,
+          "grid_kwh": 0.2
+        },
+        {
+          "time": "2026-11-04T23:00:00Z",
+          "charge_kwh": 0.0,
+          "discharge_kwh": 0.0,
+          "stored_kwh": 5.0,
+          "load_kwh": 0.125,
+          "grid_kwh": 0.125
+        },
+        {
+          "time": "2026-11-04T23:30:00Z",
+          "charge_kwh": 0.0,
+          "discharge_kwh": 0.0,
+          "stored_kwh": 5.0,
+          "load_kwh": 0.125,
+          "grid_kwh": 0.125
+        },
+        {
+          "time": "2026-11-05T00:00:00Z",
+          "charge_kwh": 0.0,
+          "discharge_kwh": 0.0,
+          "stored_kwh": 5.0,
+          "load_kwh": 0.1,
+          "grid_kwh": 0.1
+        },
+        {
+          "time": "2026-11-05T00:30:00Z",
+          "charge_kwh": 0.0,
+          "discharge_kwh": 0.0,
+          "stored_kwh": 5.0,
+          "load_kwh": 0.1,
+          "grid_kwh": 0.1
+        },
+        {
+          "time": "2026-11-05T01:00:00Z",
+          "charge_kwh": 0.0,
+          "discharge_kwh": 0.0,
+          "stored_kwh": 5.0,
+          "load_kwh": 0.1,
+          "grid_kwh": 0.1
+        },
+        {
+          "time": "2026-11-05T01:30:00Z",
+          "charge_kwh": 0.0,
+          "discharge_kwh": 0.0,
+          "stored_kwh": 5.0,
+          "load_kwh": 0.1,
+          "grid_kwh": 0.1
+        },
+        {
+          "time": "2026-11-05T02:00:00Z",
+          "charge_kwh": 0.0,
+          "discharge_kwh": 0.0,
+          "stored_kwh": 5.0,
+          "load_kwh": 0.1,
+          "grid_kwh": 0.1
+        },
+        {
+          "time": "2026-11-05T02:30:00Z",
+          "charge_kwh": 0.0,
+          "discharge_kwh": 0.0,
+          "stored_kwh": 5.0,
+          "load_kwh": 0.1,
+          "grid_kwh": 0.1
+        },
+        {
+          "time": "2026-11-05T03:00:00Z",
+          "charge_kwh": 0.0,
+          "discharge_kwh": 0.0,
+          "stored_kwh": 5.0,
+          "load_kwh": 0.1,
+          "grid_kwh": 0.1
+        },
+        {
+          "time": "2026-11-05T03:30:00Z",
+          "charge_kwh": 0.0,
+          "discharge_kwh": 0.0,
+          "stored_kwh": 5.0,
+          "load_kwh": 0.1,
+          "grid_kwh": 0.1
+        },
+        {
+          "time": "2026-11-05T04:00:00Z",
+          "charge_kwh": 0.0,
+          "discharge_kwh": 0.0,
+          "stored_kwh": 5.0,
+          "load_kwh": 0.1,
+          "grid_kwh": 0.1
+        },
+        {
+          "time": "2026-11-05T04:30:00Z",
+          "charge_kwh": 0.0,
+          "discharge_kwh": 0.0,
+          "stored_kwh": 5.0,
+          "load_kwh": 0.1,
+          "grid_kwh": 0.1
+        },
+        {
+          "time": "2026-11-05T05:00:00Z",
+          "charge_kwh": 0.0,
+          "discharge_kwh": 0.0,
+          "stored_kwh": 5.0,
+          "load_kwh": 0.1,
+          "grid_kwh": 0.1
+        },
+        {
+          "time": "2026-11-05T05:30:00Z",
+          "charge_kwh": 0.0,
+          "discharge_kwh": 0.0,
+          "stored_kwh": 5.0,
+          "load_kwh": 0.1,
+          "grid_kwh": 0.1
+        },
+        {
+          "time": "2026-11-05T06:00:00Z",
+          "charge_kwh": 0.0,
+          "discharge_kwh": 0.0,
+          "stored_kwh": 5.0,
+          "load_kwh": 0.15,
+          "grid_kwh": 0.15
+        },
+        {
+          "time": "2026-11-05T06:30:00Z",
+          "charge_kwh": 0.0,
+          "discharge_kwh": 0.0,
+          "stored_kwh": 5.0,
+          "load_kwh": 0.15,
+          "grid_kwh": 0.15
+        },
+        {
+          "time": "2026-11-05T07:00:00Z",
+          "charge_kwh": 0.0,
+          "discharge_kwh": 0.0,
+          "stored_kwh": 5.0,
+          "load_kwh": 0.25,
+          "grid_kwh": 0.25
+        },
+        {
+          "time": "2026-11-05T07:30:00Z",
+          "charge_kwh": 0.0,
+          "discharge_kwh": 0.0,
+          "stored_kwh": 5.0,
+          "load_kwh": 0.25,
+          "grid_kwh": 0.25
+        },
+        {
+          "time": "2026-11-05T08:00:00Z",
+          "charge_kwh": 0.0,
+          "discharge_kwh": 0.0,
+          "stored_kwh": 5.0,
+          "load_kwh": 0.25,
+          "grid_kwh": 0.25
+        },
+        {
+          "time": "2026-11-05T08:30:00Z",
+          "charge_kwh": 0.0,
+          "discharge_kwh": 0.0,
+          "stored_kwh": 5.0,
+          "load_kwh": 0.25,
+          "grid_kwh": 0.25
+        },
+        {
+          "time": "2026-11-05T09:00:00Z",
+          "charge_kwh": 0.0,
+          "discharge_kwh": 0.0,
+          "stored_kwh": 5.0,
+          "load_kwh": 0.125,
+          "grid_kwh": 0.125
+        },
+        {
+          "time": "2026-11-05T09:30:00Z",
+          "charge_kwh": 0.0,
+          "discharge_kwh": 0.0,
+          "stored_kwh": 5.0,
+          "load_kwh": 0.125,
+          "grid_kwh": 0.125
+        },
+        {
+          "time": "2026-11-05T10:00:00Z",
+          "charge_kwh": 0.0,
+          "discharge_kwh": 0.0,
+          "stored_kwh": 5.0,
+          "load_kwh": 0.125,
+          "grid_kwh": 0.125
+        },
+        {
+          "time": "2026-11-05T10:30:00Z",
+          "charge_kwh": 0.0,
+          "discharge_kwh": 0.0,
+          "stored_kwh": 5.0,
+          "load_kwh": 0.125,
+          "grid_kwh": 0.125
+        },
+        {
+          "time": "2026-11-05T11:00:00Z",
+          "charge_kwh": 0.0,
+          "discharge_kwh": 0.0,
+          "stored_kwh": 5.0,
+          "load_kwh": 0.125,
+          "grid_kwh": 0.125
+        },
+        {
+          "time": "2026-11-05T11:30:00Z",
+          "charge_kwh": 0.0,
+          "discharge_kwh": 0.0,
+          "stored_kwh": 5.0,
+          "load_kwh": 0.125,
+          "grid_kwh": 0.125
+        },
+        {
+          "time": "2026-11-05T12:00:00Z",
+          "charge_kwh": 0.0,
+          "discharge_kwh": 0.0,
+          "stored_kwh": 5.0,
+          "load_kwh": 0.125,
+          "grid_kwh": 0.125
+        },
+        {
+          "time": "2026-11-05T12:30:00Z",
+          "charge_kwh": 0.0,
+          "discharge_kwh": 0.0,
+          "stored_kwh": 5.0,
+          "load_kwh": 0.125,
+          "grid_kwh": 0.125
+        },
+        {
+          "time": "2026-11-05T13:00:00Z",
+          "charge_kwh": 0.0,
+          "discharge_kwh": 0.0,
+          "stored_kwh": 5.0,
+          "load_kwh": 0.125,
+          "grid_kwh": 0.125
+        },
+        {
+          "time": "2026-11-05T13:30:00Z",
+          "charge_kwh": 0.0,
+          "discharge_kwh": 0.0,
+          "stored_kwh": 5.0,
+          "load_kwh": 0.125,
+          "grid_kwh": 0.125
+        },
+        {
+          "time": "2026-11-05T14:00:00Z",
+          "charge_kwh": 0.0,
+          "discharge_kwh": 0.0,
+          "stored_kwh": 5.0,
+          "load_kwh": 0.125,
+          "grid_kwh": 0.125
+        },
+        {
+          "time": "2026-11-05T14:30:00Z",
+          "charge_kwh": 0.0,
+          "discharge_kwh": 0.0,
+          "stored_kwh": 5.0,
+          "load_kwh": 0.125,
+          "grid_kwh": 0.125
+        }
+      ]
+    }
+  ]
+}

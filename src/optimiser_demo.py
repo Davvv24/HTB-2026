@@ -136,6 +136,7 @@ def recommend(forecast, args):
         versus = "running now"
     print(f"  Compared with {versus}: {_versus_now(plan.saving_p / 100, 'GBP', 2)}, "
           f"{_versus_now(plan.saving_co2_kg, 'kg CO2', 2)}.")
+    print(f"  {plan.to_dict()['why']}")
     if plan.uses_forecast:
         print("  Uses forecast prices that Octopus has not published yet.")
     return 0

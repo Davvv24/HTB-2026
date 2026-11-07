@@ -44,3 +44,4 @@ APPLIANCES = {
     "dishwasher": ("Dishwasher", 0.6, 4),  # 1.2 kWh over 2 h
     "tumble_dryer": ("Tumble dryer", 2.0, 3),  # 3.0 kWh over 1.5 h
 }
+EV_CHARGER_KW = 7.0  # Typical home wallbox

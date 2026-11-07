@@ -12,6 +12,7 @@ Step 5 and 6 models will produce this table. Until then,
 official carbon forecast, with zero-width bands.
 """
 
+import math
 from dataclasses import dataclass, field
 
 import pandas as pd
@@ -131,6 +132,17 @@ class Plan:
     run_now_co2_kg: float
     uses_forecast: bool  # True if any slot's price is a forecast, not published
     alternatives: list = field(default_factory=list)  # Next best non-overlapping plans
+    slot_energy_kwh: list = field(default_factory=list)  # Energy used in each of `slots`
+
+    def blocks(self):
+        """Group the slots into continuous (start, end) runs, in UTC."""
+        runs = []
+        for slot in self.slots:
+            if runs and runs[-1][1] == slot:
+                runs[-1][1] = slot + SLOT
+            else:
+                runs.append([slot, slot + SLOT])
+        return [tuple(run) for run in runs]
 
     @property
     def start_utc(self):
@@ -218,6 +230,7 @@ def plan_appliance(forecast, appliance, earliest_utc, deadline_utc,
             run_now_cost_p=float(cost[run_now]),
             run_now_co2_kg=float(co2[run_now]),
             uses_forecast=not bool(windows.at[start, "published"]),
+            slot_energy_kwh=[energy] * slots,
         )
 
     best = make_plan(ranked[0])
@@ -241,4 +254,74 @@ def _infeasible_reason(forecast, appliance, earliest, deadline):
     return (
         f"{appliance.name} needs {needed.total_seconds() / 3600:g} h, "
         f"but only {hours:g} h is available before the deadline."
+    )
+
+
+# --- EV charging -------------------------------------------------------------
+
+
+def plan_ev(forecast, energy_kwh, earliest_utc, deadline_utc, power_kw=None,
+            carbon_weight=0.0, risk_aversion=0.0):
+    """Choose the best half-hours to deliver `energy_kwh` before the deadline.
+
+    Charging can pause, so the slots need not be consecutive. Each slot is
+    scored per kWh with the same cost/carbon blend and risk rule as
+    plan_appliance. The best slots charge at full power, and the last one
+    chosen only tops up what is left. "Run now" charges at full power from
+    the earliest slot until done.
+    """
+    validate_forecast(forecast)
+    power_kw = config.EV_CHARGER_KW if power_kw is None else power_kw
+    if energy_kwh <= 0 or power_kw <= 0:
+        raise ValueError("energy_kwh and power_kw must be positive.")
+    if not 0 <= carbon_weight <= 1:
+        raise ValueError("carbon_weight must be between 0 and 1.")
+    if risk_aversion < 0:
+        raise ValueError("risk_aversion cannot be negative.")
+
+    earliest = _utc(earliest_utc, "earliest_utc").ceil(SLOT)
+    deadline = _utc(deadline_utc, "deadline_utc")
+    per_slot = power_kw * SLOT_HOURS
+    needed = math.ceil(round(energy_kwh / per_slot, 9))
+    name = f"EV charging ({energy_kwh:g} kWh)"
+
+    starts = forecast.index
+    usable = forecast[(starts >= earliest) & (starts + SLOT <= deadline)]
+    if len(usable) < needed:
+        charger = Appliance(name, power_kw, needed)
+        raise InfeasibleError(_infeasible_reason(forecast, charger, earliest, deadline))
+
+    price = usable["price_p50"]
+    carbon = usable["carbon_p50"]
+    cautious_price = price + risk_aversion * (usable["price_p90"] - price)
+    cautious_carbon = carbon + risk_aversion * (usable["carbon_p90"] - carbon)
+    score = (1 - carbon_weight) * _scale(cautious_price) + carbon_weight * _scale(cautious_carbon)
+
+    def energy_split(slots):
+        """Full power in each slot, with the remainder in the last one."""
+        split = [per_slot] * (len(slots) - 1)
+        return split + [energy_kwh - per_slot * (len(slots) - 1)]
+
+    chosen = list(score.sort_values(kind="stable").index[:needed])  # Best first
+    chosen_energy = dict(zip(chosen, energy_split(chosen)))
+    run_now = list(usable.index[:needed])
+    run_now_energy = dict(zip(run_now, energy_split(run_now)))
+
+    def totals(energy_by_slot):
+        cost = sum(price[slot] * kwh for slot, kwh in energy_by_slot.items())
+        co2 = sum(carbon[slot] * kwh for slot, kwh in energy_by_slot.items()) / 1000
+        return float(cost), float(co2)
+
+    cost, co2 = totals(chosen_energy)
+    now_cost, now_co2 = totals(run_now_energy)
+    slots = sorted(chosen)
+    return Plan(
+        appliance=name,
+        slots=slots,
+        cost_p=cost,
+        co2_kg=co2,
+        run_now_cost_p=now_cost,
+        run_now_co2_kg=now_co2,
+        uses_forecast=not bool(usable.loc[slots, "price_published"].all()),
+        slot_energy_kwh=[chosen_energy[slot] for slot in slots],
     )

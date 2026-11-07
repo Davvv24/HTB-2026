@@ -1,4 +1,4 @@
-"""Checks for the optimiser's forecast table and appliance scheduling."""
+"""Checks for the optimiser's forecast table, appliances and EV charging."""
 
 import unittest
 
@@ -173,6 +173,57 @@ class PlanApplianceTests(unittest.TestCase):
     def test_presets_load_from_config(self):
         washer = optimiser.get_appliance("washing_machine")
         self.assertEqual(washer.duration_slots * washer.energy_per_slot_kwh, 1.0)
+
+
+def at(slot):
+    return START + slot * optimiser.SLOT
+
+
+class PlanEvTests(unittest.TestCase):
+    # A 7 kW charger delivers 3.5 kWh per half-hour.
+
+    def test_picks_the_cheapest_slots_even_when_apart(self):
+        plan = optimiser.plan_ev(forecast([30, 5, 30, 5, 30, 5]), 7, START, LATE, power_kw=7)
+        self.assertEqual(plan.slots[:2], [at(1), at(3)])
+        self.assertEqual(len(plan.slots), 2)
+        self.assertEqual(plan.blocks(), [(at(1), at(2)), (at(3), at(4))])
+        self.assertAlmostEqual(plan.cost_p, 35.0)
+
+    def test_tops_up_in_the_last_slot_and_compares_with_charging_now(self):
+        plan = optimiser.plan_ev(forecast([30, 5, 30, 5]), 5, START, LATE, power_kw=7)
+        self.assertEqual(plan.slots, [at(1), at(3)])
+        self.assertEqual(plan.slot_energy_kwh, [3.5, 1.5])
+        self.assertAlmostEqual(sum(plan.slot_energy_kwh), 5.0)
+        self.assertAlmostEqual(plan.cost_p, 25.0)  # 5p x 5 kWh
+        self.assertAlmostEqual(plan.run_now_cost_p, 112.5)  # 30p x 3.5 + 5p x 1.5
+        self.assertAlmostEqual(plan.saving_p, 87.5)
+
+    def test_an_exact_multiple_uses_whole_slots(self):
+        plan = optimiser.plan_ev(forecast([10] * 6), 10.5, START, LATE, power_kw=7)
+        self.assertEqual(plan.slot_energy_kwh, [3.5, 3.5, 3.5])
+
+    def test_respects_the_deadline(self):
+        plan = optimiser.plan_ev(forecast([30, 5, 30, 1]), 7, START, at(3), power_kw=7)
+        self.assertLessEqual(plan.end_utc, at(3))
+        self.assertEqual(plan.slots, [at(0), at(1)])  # 1p slot is too late; 30p tie goes earlier
+
+    def test_not_enough_time_raises(self):
+        with self.assertRaisesRegex(optimiser.InfeasibleError, "needs 2 h, but only 1.5 h"):
+            optimiser.plan_ev(forecast([10] * 6), 14, START, at(3), power_kw=7)
+
+    def test_greenest_charges_in_the_cleanest_slots(self):
+        table = forecast([10, 10, 40, 40], carbon=[300, 300, 50, 50])
+        plan = optimiser.plan_ev(table, 7, START, LATE, power_kw=7, carbon_weight=1)
+        self.assertEqual(plan.slots, [at(2), at(3)])
+        self.assertAlmostEqual(plan.saving_co2_kg, 1.75)  # 250 g x 7 kWh
+
+    def test_uses_the_configured_charger_by_default(self):
+        plan = optimiser.plan_ev(forecast([10] * 4), 7, START, LATE)
+        self.assertEqual(plan.slot_energy_kwh, [3.5, 3.5])
+
+    def test_rejects_zero_energy(self):
+        with self.assertRaises(ValueError):
+            optimiser.plan_ev(forecast([10] * 4), 0, START, LATE)
 
 
 if __name__ == "__main__":

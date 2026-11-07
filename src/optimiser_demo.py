@@ -6,6 +6,8 @@ Run with `python -m src.optimiser_demo`. Add `--offline` to skip the APIs.
 import argparse
 from datetime import UTC, datetime, timedelta
 
+import pandas as pd
+
 import config
 from src import data, optimiser
 from src.check_data import load_sample
@@ -68,7 +70,41 @@ def main() -> int:
         )
 
     show_appliance_plans(forecast)
+    show_ev_plan(forecast)
     return 0
+
+
+def _versus_now(saving, unit, places):
+    """Word a saving against running now, e.g. 'saves 2.92 GBP' or 'costs 0.02 GBP more'."""
+    saving = round(saving, places) + 0
+    if saving == 0:
+        return f"same {unit} as now"
+    word = "saves" if saving > 0 else "costs"
+    return f"{word} {abs(saving):.{places}f} {unit}{'' if saving > 0 else ' more'}"
+
+
+def show_ev_plan(forecast, energy_kwh=30.0):
+    """Charge an EV by 07:00 the next morning, London time, if the data reaches it."""
+    earliest = forecast.index[0]
+    local = earliest.tz_convert(config.UK_TIMEZONE).to_pydatetime()
+    seven = local.replace(hour=7, minute=0)
+    if seven <= local:
+        seven = (seven + timedelta(days=1)).replace(hour=7)  # Keeps 07:00 across clock changes
+    deadline = min(pd.Timestamp(seven).tz_convert("UTC"), forecast.index[-1] + optimiser.SLOT)
+    print(f"\nEV charging: {energy_kwh:g} kWh at {config.EV_CHARGER_KW:g} kW by {_local(deadline)}")
+    try:
+        for label, weight in (("Cheapest", 0.0), ("Greenest", 1.0)):
+            plan = optimiser.plan_ev(forecast, energy_kwh, earliest, deadline, carbon_weight=weight)
+            blocks = ", ".join(f"{_local(start)}-{end.tz_convert(config.UK_TIMEZONE):%H:%M}"
+                               for start, end in plan.blocks())
+            print(
+                f"  {label:<9} {blocks} | {plan.cost_p / 100:.2f} GBP, {plan.co2_kg:.1f} kg CO2"
+                f" | {_versus_now(plan.saving_p / 100, 'GBP', 2)}, {_versus_now(plan.saving_co2_kg, 'kg', 1)}"
+            )
+        print(f"  Run now   from {_local(earliest)} | {plan.run_now_cost_p / 100:.2f} GBP, "
+              f"{plan.run_now_co2_kg:.1f} kg CO2")
+    except optimiser.InfeasibleError as exc:
+        print(f"  Not possible: {exc}")
 
 
 def _local(when):

@@ -220,3 +220,44 @@
 }
 .why-panel li.helps span:last-child { color: var(--green); }
 .why-panel li.hurts span:last-child { color: var(--red); }
+
+
+/* My savings */
+.savings { display: grid; gap: 16px; }
+
+.badge {
+  justify-self: start;
+  padding: 2px 8px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  color: var(--muted);
+  font-size: 0.8rem;
+}
+
+.goal { display: grid; gap: 6px; }
+.goal-text { display: flex; justify-content: space-between; font-weight: 600; }
+.progress {
+  height: 12px;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  overflow: hidden;
+}
+.progress-fill { height: 100%; background: var(--green); }
+
+.stats {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+}
+@media (min-width: 640px) {
+  .stats { grid-template-columns: repeat(4, 1fr); }
+}
+.stat {
+  padding: 16px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+}
+.stat-value { font-size: 1.75rem; font-weight: 700; }
+.stat-label { color: var(--muted); font-size: 0.9rem; }

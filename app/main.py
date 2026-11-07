@@ -14,6 +14,8 @@ FEATURES_PATH = config.DATA_DIR / "features.parquet"
 DEFAULT_EV_KWH = 30
 VALUE_COLUMNS = ["price_p10", "price_p50", "price_p90",
                  "carbon_p10", "carbon_p50", "carbon_p90"]
+DATASET_PATH = config.DATA_DIR / "dataset.parquet"
+MIX_SOURCES = ["wind", "gas", "nuclear", "solar", "biomass", "hydro", "imports", "coal", "other"]
 
 
 def iso(ts):
@@ -49,6 +51,40 @@ except Exception as error:
     print(f"Explanations unavailable, using the simple sentence instead: {error}")
     CONTRIBUTIONS = None
 
+def load_grid_snapshot(at):
+    """Actual GB carbon intensity and generation mix at the forecast's issue time,
+    so the grid panel matches the replay."""
+    mix_columns = [f"gb_{source}_pct" for source in MIX_SOURCES]
+    data = pd.read_parquet(
+        DATASET_PATH,
+        columns=["time_utc", "gb_carbon_actual_gco2_kwh", "gb_carbon_actual_suspect", *mix_columns],
+    )
+    data["time_utc"] = pd.to_datetime(data.time_utc, utc=True)
+    usable = (
+        (data.time_utc <= at)
+        & data.gb_carbon_actual_gco2_kwh.notna()
+        & ~data.gb_carbon_actual_suspect.fillna(False).astype(bool)
+    )
+    row = data[usable].sort_values("time_utc").iloc[-1]  # Latest good reading at or before `at`
+    return {
+        "data_as_of": iso(row.time_utc),
+        "cached": True,
+        "historical_demo": True,
+        "carbon_intensity": int(row.gb_carbon_actual_gco2_kwh),
+        "mix_percent": {
+            source: round(float(row[f"gb_{source}_pct"]), 1)
+            for source in MIX_SOURCES
+            if pd.notna(row[f"gb_{source}_pct"])
+        },
+    }
+
+
+try:
+    GRID = load_grid_snapshot(ISSUED_AT)
+except Exception as error:
+    print(f"Grid snapshot unavailable: {error}")
+    GRID = None
+
 app = FastAPI()
 
 
@@ -59,17 +95,9 @@ def health():
 
 @app.get("/api/grid")
 def grid():
-    # Mock for now; later uses the team's data fetching in /src
-    return {
-        "data_as_of": "2026-11-07T18:00:00Z",
-        "cached": True,
-        "synthetic": True,
-        "carbon_intensity": 145,
-        "mix_percent": {
-            "wind": 42, "gas": 25, "nuclear": 15, "solar": 3,
-            "imports": 8, "biomass": 5, "other": 2,
-        },
-    }
+    if GRID is None:
+        raise HTTPException(status_code=503, detail="Grid data unavailable")
+    return GRID
 
 
 @app.get("/api/forecast")

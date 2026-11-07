@@ -1,0 +1,38 @@
+"""Shared settings for the Grid Advisor project."""
+
+from pathlib import Path
+
+ROOT_DIR = Path(__file__).resolve().parent
+DATA_DIR = ROOT_DIR / "data"
+CACHE_DIR = DATA_DIR / "cache"
+SAMPLES_DIR = DATA_DIR / "samples"
+
+AGILE_REGION = "N"  # Edinburgh / South Scotland
+CARBON_REGION_ID = 2  # NESO South Scotland
+UK_TIMEZONE = "Europe/London"
+CHECK_DAYS = 3
+HTTP_TIMEOUT = (10, 15)  # Connect and read timeouts, in seconds
+
+OCTOPUS_URL = "https://api.octopus.energy/v1"
+CARBON_URL = "https://api.carbonintensity.org.uk"
+ELEXON_URL = "https://data.elexon.co.uk/bmrs/api/v1"
+WEATHER_URLS = {
+    "forecast": "https://api.open-meteo.com/v1/forecast",
+    "historical_forecast": "https://historical-forecast-api.open-meteo.com/v1/forecast",
+    "archive": "https://archive-api.open-meteo.com/v1/archive",
+    "single_run": "https://single-runs-api.open-meteo.com/v1/forecast",
+}
+
+WEATHER_POINTS = (
+    ("South Scotland", 55.7, -4.2),
+    ("North Sea", 56.0, 1.8),
+    ("East Anglia", 52.5, 0.8),
+    ("South England", 51.2, -1.5),
+)
+WEATHER_FIELDS = (
+    "wind_speed_100m",
+    "wind_gusts_10m",
+    "cloud_cover",
+    "shortwave_radiation",
+    "temperature_2m",
+)

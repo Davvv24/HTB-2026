@@ -25,24 +25,25 @@ const METRICS = {
   carbon: { label: 'Carbon', unit: 'gCO₂/kWh', title: 'Carbon intensity, next 48 hours' },
 }
 
-// "07:00" -> the next time it's 07:00, as a UTC timestamp for the API
-function nextOccurrence(hhmm) {
+// "07:00" -> the next 07:00 after `from` (default: now)
+function nextOccurrence(hhmm, from = new Date()) {
   const [h, m] = hhmm.split(':').map(Number)
-  const d = new Date()
+  const d = new Date(from)
   d.setHours(h, m, 0, 0)
-  if (d <= new Date()) d.setDate(d.getDate() + 1)
-  return d.toISOString()
+  if (d <= from) d.setDate(d.getDate() + 1)
+  return d
 }
 
-// UTC timestamp from the API -> "02:30" in UK time
+// UTC timestamp from the API -> "Mon 02:30" in UK time
 function ukTime(iso) {
   return new Date(iso).toLocaleTimeString('en-GB', {
-    hour: '2-digit', minute: '2-digit', timeZone: 'Europe/London',
+    weekday: 'short', hour: '2-digit', minute: '2-digit', timeZone: 'Europe/London',
   })
 }
 
 function App() {
   const [appliance, setAppliance] = useState('washing_machine')
+  const [startAfter, setStartAfter] = useState('')
   const [finishBy, setFinishBy] = useState('07:00')
   const [carbonWeight, setCarbonWeight] = useState(50)
   const [riskAversion, setRiskAversion] = useState(0.5)
@@ -50,6 +51,7 @@ function App() {
   const [rec, setRec] = useState(null)
   const [forecast, setForecast] = useState(null)
   const [metric, setMetric] = useState('price')
+  const [error, setError] = useState(null)
 
   const selectedRisk = RISK_OPTIONS.find((o) => o.value === riskAversion)
   const chart = METRICS[metric]
@@ -64,18 +66,28 @@ function App() {
   }, [])
 
   async function getRecommendation() {
+    const start = startAfter ? nextOccurrence(startAfter) : new Date()
+    const deadline = nextOccurrence(finishBy, start)
+
     const res = await fetch('/api/recommend', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         appliance,
-        earliest_start: new Date().toISOString(),
-        deadline: nextOccurrence(finishBy),
+        earliest_start: start.toISOString(),
+        deadline: deadline.toISOString(),
         carbon_weight: carbonWeight / 100,
         risk_aversion: riskAversion,
       }),
     })
-    setRec(await res.json())
+    const data = await res.json()
+    if (!res.ok) {
+      setError(data.detail)
+      setRec(null)
+      return
+    }
+    setError(null)
+    setRec(data)
   }
 
   return (
@@ -90,16 +102,20 @@ function App() {
 
       <div className="layout">
         <section className="controls">
+          <label className="field">
+            Appliance
+            <select value={appliance} onChange={(e) => setAppliance(e.target.value)}>
+              <option value="washing_machine">Washing machine</option>
+              <option value="dishwasher">Dishwasher</option>
+              <option value="tumble_dryer">Tumble dryer</option>
+              <option value="ev">Electric car</option>
+            </select>
+          </label>
+
           <div className="row">
             <label className="field">
-              Appliance
-              <select value={appliance} onChange={(e) => setAppliance(e.target.value)}>
-                <option value="washing_machine">Washing machine</option>
-                <option value="dishwasher">Dishwasher</option>
-                <option value="tumble_dryer">Tumble dryer</option>
-                <option value="ev">Electric car</option>
-                <option value="battery">Home battery</option>
-              </select>
+              Start after
+              <input type="time" value={startAfter} onChange={(e) => setStartAfter(e.target.value)} />
             </label>
 
             <label className="field">
@@ -144,20 +160,28 @@ function App() {
         </section>
 
         <div className="results">
+          {error && <p className="placeholder">{error}</p>}
+
           {rec ? (
             <section className="rec-card">
               <h2>Run it at {ukTime(rec.start)}</h2>
-              <p>
-                Saves £{rec.saving_gbp.toFixed(2)} and {rec.saving_co2_kg} kg CO₂
-                compared with running now.
-              </p>
-              <p className="why">Why: {rec.why}</p>
+              {rec.saving_gbp > 0 || rec.saving_co2_kg > 0 ? (
+                <p>
+                  Saves £{rec.saving_gbp.toFixed(2)} and {rec.saving_co2_kg.toFixed(2)} kg CO₂
+                  compared with starting at {ukTime(rec.run_now.start)}.
+                </p>
+              ) : (
+                <p>Good news: starting straight away is already the best option in your time window.</p>
+              )}
+              {rec.why && <p className="why">Why: {rec.why}</p>}
             </section>
           ) : (
-            <p className="placeholder">
-              Choose your appliance and when it needs to finish, then press
-              “Find the best time”.
-            </p>
+            !error && (
+              <p className="placeholder">
+                Choose your appliance and when it needs to finish, then press
+                “Find the best time”.
+              </p>
+            )
           )}
 
           <div className="results-header">

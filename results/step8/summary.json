@@ -1,0 +1,30 @@
+{
+  "requested_days": 90,
+  "evaluated_appliance_days": 90,
+  "evaluated_battery_days": 90,
+  "skipped_appliance_days": [],
+  "chronology": {
+    "last_training_cutoff": "2026-07-04 14:00:00+00:00",
+    "first_calibration_cutoff": "2026-07-07 14:00:00+00:00",
+    "first_test_cutoff": "2026-08-06 14:00:00+00:00",
+    "last_test_cutoff": "2026-11-03 15:00:00+00:00",
+    "purge_hours": 52
+  },
+  "carbon_weight": 0.0,
+  "risk_aversion": 0.5,
+  "battery": {
+    "net_pnl_gbp": 57.107839820334995,
+    "annualised_daily_savings_sharpe": 28.059768953283307,
+    "max_drawdown_gbp": 0.0
+  },
+  "assumptions": [
+    "Simulated household runs each configured appliance once daily, available at 15:00 UK, due next 07:00. Fixed overnight starts at midnight.",
+    "Separate battery household uses config's synthetic load, carries charge between daily plans, and ends each plan with at least its starting charge. No export or capital cost.",
+    "Frozen models are newly fitted before the 90-day holdout (or requested days); rolling calibration uses only labels available at each cutoff.",
+    "Historical weather/carbon availability uses Step 3 release-buffer assumptions, not verified issue logs.",
+    "Future Agile prices are treated as unknown because historical publication timestamps are absent. This is a forecast-only scenario.",
+    "Carbon actuals are GB-wide. Official archived forecast corrections are excluded.",
+    "Perfect foresight minimises actual appliance cost with the same constraints; it is a money-saving upper bound, not a carbon bound.",
+    "Battery Sharpe uses daily GBP savings relative to no battery and sqrt(365), not investment returns. Correlated daily savings limit interpretation."
+  ]
+}

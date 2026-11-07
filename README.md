@@ -2,6 +2,17 @@
 
 Grid Advisor is a HackTheBurgh 2026 project that will help households choose when to run appliances by showing the trade-off between electricity cost, carbon and convenience. The first region is Edinburgh and South Scotland.
 
+## Run Step 8
+
+Run the 90-day historical replay using the committed dataset and features.
+
+```bash
+python -m src.backtest
+python -m unittest discover -s tests -v
+```
+
+Results are written to `results/step8/`. The default simulated household saves GBP 29.88 against running immediately, capturing 76.53% of the perfect-foresight saving. Separate battery savings are GBP 57.11 after degradation. See [Step 8](docs/STEP8.md) for the measured comparison table, chronology, assumptions, output files and run options.
+
 ## Run Step 3
 
 With Step 2's `data/dataset.parquet` in place, build the feature table and run the cutoff tests.

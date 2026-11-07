@@ -15,7 +15,9 @@ official carbon forecast, with zero-width bands.
 import math
 from dataclasses import dataclass, field
 
+import numpy as np
 import pandas as pd
+from scipy.optimize import linprog
 
 import config
 
@@ -325,3 +327,159 @@ def plan_ev(forecast, energy_kwh, earliest_utc, deadline_utc, power_kw=None,
         uses_forecast=not bool(usable.loc[slots, "price_published"].all()),
         slot_energy_kwh=[chosen_energy[slot] for slot in slots],
     )
+
+
+# --- Home battery --------------------------------------------------------------
+
+
+@dataclass
+class BatteryPlan:
+    schedule: pd.DataFrame  # Per slot: charge, discharge, stored, load and grid kWh
+    cost_without_p: float  # Household load bought from the grid, no battery
+    cost_with_p: float  # Grid purchases with the battery, before wear
+    degradation_p: float  # Wear cost of the planned cycling
+    co2_without_kg: float
+    co2_with_kg: float
+    uses_forecast: bool
+
+    @property
+    def saving_p(self):
+        """Net saving after battery wear. Zero when cycling is not worth it."""
+        return self.cost_without_p - self.cost_with_p - self.degradation_p
+
+    @property
+    def saving_co2_kg(self):
+        return self.co2_without_kg - self.co2_with_kg
+
+    @property
+    def next_action(self):
+        """What to do in the first slot: 'charge', 'discharge' or 'hold'."""
+        first = self.schedule.iloc[0]
+        if first["charge_kwh"] > 1e-6:
+            return "charge"
+        return "discharge" if first["discharge_kwh"] > 1e-6 else "hold"
+
+
+def typical_load(index):
+    """Assumed household use in kWh per slot from config.HOUSEHOLD_LOAD_KW_BY_HOUR."""
+    hours = index.tz_convert(config.UK_TIMEZONE).hour
+    kw = [config.HOUSEHOLD_LOAD_KW_BY_HOUR[hour] for hour in hours]
+    return pd.Series(kw, index=index, dtype=float) * SLOT_HOURS
+
+
+def plan_battery(forecast, load_kwh=None, carbon_weight=0.0, risk_aversion=0.0, **battery):
+    """Plan charge and discharge for every slot with a linear programme.
+
+    Variables per slot t: c_t energy drawn from the grid into the battery,
+    d_t energy the battery supplies to the home, s_t energy stored after t.
+
+        minimise  sum  buy_t * c_t - sell_t * d_t + wear * (c_t + d_t)
+        subject to
+            s_t = s_(t-1) + c_t * eta - d_t / eta    eta = sqrt(round trip)
+            0 <= s_t <= capacity
+            0 <= c_t <= power * 0.5 h
+            0 <= d_t <= min(power * 0.5 h, load_t)   no export: it only covers home use
+            s_last >= initial                        no free energy from draining it
+
+    buy_t and sell_t are the slot's value per kWh. With carbon_weight > 0,
+    carbon is mapped onto the price range and blended in. Risk aversion
+    plans charging on the upper band and discharging on the lower band, so
+    uncertain spreads are discounted. To re-plan as forecasts update, call
+    again with initial_kwh set to the current stored energy and act on the
+    first slot only.
+    """
+    validate_forecast(forecast)
+    settings = {**config.BATTERY, **battery}
+    capacity = settings["capacity_kwh"]
+    step = settings["power_kw"] * SLOT_HOURS
+    eta = math.sqrt(settings["round_trip_eff"])
+    wear = settings["degradation_p_per_kwh"]
+    initial = settings["initial_kwh"]
+    if not 0 < settings["round_trip_eff"] <= 1:
+        raise ValueError("round_trip_eff must be in (0, 1].")
+    if capacity <= 0 or step <= 0 or wear < 0 or not 0 <= initial <= capacity:
+        raise ValueError("Check battery capacity, power, wear cost and initial charge.")
+    if not 0 <= carbon_weight <= 1 or risk_aversion < 0:
+        raise ValueError("carbon_weight must be 0-1 and risk_aversion non-negative.")
+
+    load = typical_load(forecast.index) if load_kwh is None else load_kwh.reindex(forecast.index)
+    if load.isna().any() or (load < 0).any():
+        raise ValueError("load_kwh needs a non-negative value for every forecast slot.")
+
+    buy, sell = _battery_values(forecast, carbon_weight, risk_aversion)
+    slots = len(forecast)
+    charge, discharge, stored = range(0, slots), range(slots, 2 * slots), range(2 * slots, 3 * slots)
+
+    cost = np.zeros(3 * slots)
+    cost[list(charge)] = buy + wear
+    cost[list(discharge)] = -sell + wear
+
+    balance = np.zeros((slots, 3 * slots))
+    for t in range(slots):
+        balance[t, stored[t]] = 1
+        balance[t, charge[t]] = -eta
+        balance[t, discharge[t]] = 1 / eta
+        if t > 0:
+            balance[t, stored[t - 1]] = -1
+    balance_rhs = np.zeros(slots)
+    balance_rhs[0] = initial
+
+    keep_charge = np.zeros((1, 3 * slots))
+    keep_charge[0, stored[-1]] = -1
+
+    bounds = (
+        [(0, step)] * slots
+        + [(0, min(step, value)) for value in load]
+        + [(0, capacity)] * slots
+    )
+    result = linprog(cost, A_ub=keep_charge, b_ub=[-initial], A_eq=balance, b_eq=balance_rhs,
+                     bounds=bounds, method="highs")
+    if result.status != 0:
+        raise RuntimeError(f"Battery optimisation failed: {result.message}")
+
+    x = np.clip(result.x, 0, None).round(6)
+    schedule = pd.DataFrame({
+        "charge_kwh": x[list(charge)],
+        "discharge_kwh": x[list(discharge)],
+        "stored_kwh": x[list(stored)],
+        "load_kwh": load.to_numpy(),
+    }, index=forecast.index)
+    schedule["grid_kwh"] = schedule["load_kwh"] + schedule["charge_kwh"] - schedule["discharge_kwh"]
+
+    price, carbon = forecast["price_p50"], forecast["carbon_p50"]
+    active = (schedule["charge_kwh"] > 1e-6) | (schedule["discharge_kwh"] > 1e-6)
+    return BatteryPlan(
+        schedule=schedule,
+        cost_without_p=float((schedule["load_kwh"] * price).sum()),
+        cost_with_p=float((schedule["grid_kwh"] * price).sum()),
+        degradation_p=float(wear * (schedule["charge_kwh"] + schedule["discharge_kwh"]).sum()),
+        co2_without_kg=float((schedule["load_kwh"] * carbon).sum() / 1000),
+        co2_with_kg=float((schedule["grid_kwh"] * carbon).sum() / 1000),
+        uses_forecast=not bool(forecast.loc[active, "price_published"].all()),
+    )
+
+
+def _battery_values(forecast, carbon_weight, risk_aversion):
+    """Value per kWh of buying (charging) and saving (discharging) in each slot.
+
+    Carbon is rescaled onto the price range so both are in pence and the
+    wear cost stays meaningful. Charging is valued on the cautious upper
+    band and discharging on the cautious lower band.
+    """
+    def cautious(prefix):
+        low, mid, high = (forecast[f"{prefix}_{q}"] for q in ("p10", "p50", "p90"))
+        return mid + risk_aversion * (high - mid), mid - risk_aversion * (mid - low)
+
+    price_buy, price_sell = cautious("price")
+    carbon_buy, carbon_sell = cautious("carbon")
+    price_low = forecast["price_p50"].min()
+    price_spread = max(forecast["price_p50"].max() - price_low, 1.0)
+    carbon_low = forecast["carbon_p50"].min()
+    carbon_spread = max(forecast["carbon_p50"].max() - carbon_low, 1.0)
+
+    def as_pence(carbon):
+        return price_low + (carbon - carbon_low) / carbon_spread * price_spread
+
+    buy = (1 - carbon_weight) * price_buy + carbon_weight * as_pence(carbon_buy)
+    sell = (1 - carbon_weight) * price_sell + carbon_weight * as_pence(carbon_sell)
+    return buy.to_numpy(), sell.to_numpy()

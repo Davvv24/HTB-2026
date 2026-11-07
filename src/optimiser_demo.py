@@ -71,7 +71,56 @@ def main() -> int:
 
     show_appliance_plans(forecast)
     show_ev_plan(forecast)
+    show_battery_plan(forecast)
     return 0
+
+
+def _periods(active):
+    """Turn a boolean series of slots into 'Sun 01:30-04:00' style ranges."""
+    ranges, start = [], None
+    for slot, on in active.items():
+        if on and start is None:
+            start = slot
+        if not on and start is not None:
+            ranges.append((start, slot))
+            start = None
+    if start is not None:
+        ranges.append((start, active.index[-1] + optimiser.SLOT))
+    return ", ".join(_span(a, b) for a, b in ranges) or "none"
+
+
+def _span(start, end):
+    """'Sat 19:30-22:00', or 'Sat 19:30-Sun 09:00' when it runs past midnight."""
+    same_day = (start.tz_convert(config.UK_TIMEZONE).date()
+                == (end - optimiser.SLOT).tz_convert(config.UK_TIMEZONE).date())
+    finish = end.tz_convert(config.UK_TIMEZONE).strftime("%H:%M") if same_day else _local(end)
+    return f"{_local(start)}-{finish}"
+
+
+def show_battery_plan(forecast):
+    """Plan a home battery over the whole forecast with the default settings."""
+    b = config.BATTERY
+    print(
+        f"\nHome battery: {b['capacity_kwh']:g} kWh, {b['power_kw']:g} kW, "
+        f"{b['round_trip_eff']:.0%} round trip, {b['degradation_p_per_kwh']:g}p/kWh wear, "
+        f"starts with {b['initial_kwh']:g} kWh. Covers home use only (no export)."
+    )
+    for label, weight in (("Cheapest", 0.0), ("Greenest", 1.0)):
+        plan = optimiser.plan_battery(forecast, carbon_weight=weight)
+        s = plan.schedule
+        pad = " " * len(label)
+        print(f"  {label}: charge {_periods(s['charge_kwh'] > 1e-6)}")
+        print(f"  {pad}  use battery {_periods(s['discharge_kwh'] > 1e-6)}")
+        print(
+            f"  {pad}  household {s['load_kwh'].sum():.1f} kWh: "
+            f"{plan.cost_without_p / 100:.2f} GBP without battery, "
+            f"{(plan.cost_with_p + plan.degradation_p) / 100:.2f} GBP with it "
+            f"(incl. {plan.degradation_p / 100:.2f} wear)"
+        )
+        print(
+            f"  {pad}  {_versus_now(plan.saving_p / 100, 'GBP', 2)}, "
+            f"{_versus_now(plan.saving_co2_kg, 'kg', 2)} | do now: {plan.next_action}"
+        )
 
 
 def _versus_now(saving, unit, places):
@@ -95,8 +144,7 @@ def show_ev_plan(forecast, energy_kwh=30.0):
     try:
         for label, weight in (("Cheapest", 0.0), ("Greenest", 1.0)):
             plan = optimiser.plan_ev(forecast, energy_kwh, earliest, deadline, carbon_weight=weight)
-            blocks = ", ".join(f"{_local(start)}-{end.tz_convert(config.UK_TIMEZONE):%H:%M}"
-                               for start, end in plan.blocks())
+            blocks = ", ".join(_span(start, end) for start, end in plan.blocks())
             print(
                 f"  {label:<9} {blocks} | {plan.cost_p / 100:.2f} GBP, {plan.co2_kg:.1f} kg CO2"
                 f" | {_versus_now(plan.saving_p / 100, 'GBP', 2)}, {_versus_now(plan.saving_co2_kg, 'kg', 1)}"

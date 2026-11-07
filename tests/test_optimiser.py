@@ -1,4 +1,4 @@
-"""Checks for the optimiser's forecast table, appliances and EV charging."""
+"""Checks for the optimiser's forecast table, appliances, EV charging and battery."""
 
 import unittest
 
@@ -224,6 +224,85 @@ class PlanEvTests(unittest.TestCase):
     def test_rejects_zero_energy(self):
         with self.assertRaises(ValueError):
             optimiser.plan_ev(forecast([10] * 4), 0, START, LATE)
+
+
+def load(values):
+    return pd.Series(values, index=pd.date_range(START, periods=len(values), freq="30min"), dtype=float)
+
+
+IDEAL = dict(capacity_kwh=2, power_kw=4, round_trip_eff=1.0, degradation_p_per_kwh=0, initial_kwh=0)
+
+
+class PlanBatteryTests(unittest.TestCase):
+    def test_charges_cheap_and_covers_expensive_use(self):
+        plan = optimiser.plan_battery(forecast([10, 10, 50, 50]), load([1, 1, 1, 1]), **IDEAL)
+        s = plan.schedule
+        self.assertAlmostEqual(s["charge_kwh"].iloc[:2].sum(), 2.0)
+        self.assertEqual(s["discharge_kwh"].tolist(), [0, 0, 1, 1])
+        self.assertAlmostEqual(plan.saving_p, 80.0)  # 2 kWh moved from 50p to 10p
+        self.assertEqual(plan.next_action, "charge")
+
+    def test_round_trip_losses_are_paid_for(self):
+        settings = {**IDEAL, "capacity_kwh": 10, "round_trip_eff": 0.81}  # 0.9 each way
+        plan = optimiser.plan_battery(forecast([10, 50]), load([0, 1]), **settings)
+        self.assertAlmostEqual(plan.schedule["discharge_kwh"].iloc[1], 1.0)
+        self.assertAlmostEqual(plan.schedule["charge_kwh"].iloc[0], 1 / 0.81, places=4)
+        self.assertAlmostEqual(plan.saving_p, 50 - 10 / 0.81, places=3)
+
+    def test_does_not_trade_a_spread_smaller_than_the_losses(self):
+        settings = {**IDEAL, "round_trip_eff": 0.81}
+        plan = optimiser.plan_battery(forecast([10, 11]), load([0, 1]), **settings)
+        self.assertEqual(plan.schedule["charge_kwh"].sum(), 0)
+        self.assertEqual(plan.saving_p, 0)
+        self.assertEqual(plan.next_action, "hold")
+
+    def test_wear_cost_stops_cycling_on_a_flat_day(self):
+        plan = optimiser.plan_battery(forecast([20] * 6), load([1] * 6),
+                                      **{**IDEAL, "degradation_p_per_kwh": 1})
+        self.assertEqual(plan.schedule["charge_kwh"].sum(), 0)
+        self.assertEqual(plan.saving_p, 0)
+
+    def test_stays_within_limits_and_ends_at_least_as_full(self):
+        prices = [12, 35, 8, 60, 22, 5, 70, 15, 40, 9, 55, 30]
+        settings = dict(capacity_kwh=5, power_kw=3, round_trip_eff=0.9,
+                        degradation_p_per_kwh=1, initial_kwh=2)
+        uses = [0.4, 1.2, 0.2, 2.0, 0.5, 0.1, 1.8, 0.3, 0.9, 0.2, 1.5, 0.6]
+        plan = optimiser.plan_battery(forecast(prices), load(uses), **settings)
+        s = plan.schedule
+        tiny = 1e-6
+        self.assertTrue((s["stored_kwh"] <= 5 + tiny).all() and (s["stored_kwh"] >= -tiny).all())
+        self.assertTrue((s["charge_kwh"] <= 1.5 + tiny).all())
+        self.assertTrue((s["discharge_kwh"] <= s["load_kwh"] + tiny).all())
+        self.assertTrue((s["grid_kwh"] >= -tiny).all())  # Never exports
+        self.assertGreaterEqual(s["stored_kwh"].iloc[-1], 2 - tiny)
+        self.assertGreater(plan.saving_p, 0)
+
+    def test_greenest_follows_carbon(self):
+        table = forecast([20, 20], carbon=[50, 300])
+        plan = optimiser.plan_battery(table, load([0, 1]), carbon_weight=1, **IDEAL)
+        self.assertAlmostEqual(plan.schedule["charge_kwh"].iloc[0], 1.0)
+        self.assertAlmostEqual(plan.saving_co2_kg, 0.25)
+        self.assertAlmostEqual(plan.saving_p, 0)  # Same price, so no money saved
+
+    def test_risk_aversion_skips_an_uncertain_spread(self):
+        # The 30p slot might really be 10p (p10), so a careful plan does not rely on it.
+        table = forecast([10, 30], price_band=[0, 20])
+        bold = optimiser.plan_battery(table, load([0, 1]), risk_aversion=0, **IDEAL)
+        careful = optimiser.plan_battery(table, load([0, 1]), risk_aversion=1,
+                                         **{**IDEAL, "degradation_p_per_kwh": 0.5})
+        self.assertGreater(bold.schedule["discharge_kwh"].sum(), 0)
+        self.assertTrue(bold.uses_forecast)
+        self.assertEqual(careful.schedule["discharge_kwh"].sum(), 0)
+
+    def test_uses_the_typical_load_when_none_is_given(self):
+        plan = optimiser.plan_battery(forecast([10] * 48))
+        self.assertAlmostEqual(plan.schedule["load_kwh"].sum(), 8.6)
+
+    def test_rejects_impossible_settings(self):
+        with self.assertRaises(ValueError):
+            optimiser.plan_battery(forecast([10, 20]), load([1, 1]), **{**IDEAL, "initial_kwh": 5})
+        with self.assertRaises(ValueError):
+            optimiser.plan_battery(forecast([10, 20]), load([1, 1]), **{**IDEAL, "round_trip_eff": 0})
 
 
 if __name__ == "__main__":

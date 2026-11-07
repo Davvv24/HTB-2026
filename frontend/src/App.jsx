@@ -4,6 +4,7 @@ import ForecastChart from './components/ForecastChart'
 import { nextOccurrence, requestJson, savingText } from './request'
 import Receipts from './components/Receipts'
 import WhyPanel from './components/WhyPanel'
+import Savings from './components/Savings'
 
 const RISK_OPTIONS = [
   {
@@ -142,6 +143,13 @@ function App() {
           onClick={() => setView('receipts')}
         >
           Receipts
+        </button>
+        <button
+          type="button"
+          aria-pressed={view === 'savings'}
+          onClick={() => setView('savings')}
+        >
+          My Savings
         </button>
       </div>
 
@@ -292,6 +300,7 @@ function App() {
         </div>
       </div>
       {view === 'receipts' && <Receipts />}
+      {view === 'savings' && <Savings />}
     </main>
   )
 }

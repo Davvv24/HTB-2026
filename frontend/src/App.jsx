@@ -112,7 +112,7 @@ function App() {
 
       <p className="grid-status">
         {grid
-          ? `${grid.synthetic ? 'Illustrative grid carbon intensity' : 'Grid carbon intensity'}: ${grid.carbon_intensity} gCO₂/kWh`
+          ? `GB grid carbon intensity at ${ukTime(grid.data_as_of)}: ${grid.carbon_intensity} gCO₂/kWh`
           : 'Loading grid data…'}
       </p>
 

@@ -1,4 +1,5 @@
 import pandas as pd
+import json
 from fastapi import FastAPI, HTTPException
 from pydantic import AwareDatetime, BaseModel, Field, model_validator
 
@@ -16,6 +17,13 @@ VALUE_COLUMNS = ["price_p10", "price_p50", "price_p90",
                  "carbon_p10", "carbon_p50", "carbon_p90"]
 DATASET_PATH = config.DATA_DIR / "dataset.parquet"
 MIX_SOURCES = ["wind", "gas", "nuclear", "solar", "biomass", "hydro", "imports", "coal", "other"]
+STEP8_DIR = config.ROOT_DIR / "results/step8"
+STRATEGY_LABELS = {  # Display order and names
+    "run_now": "Start straight away",
+    "fixed_overnight": "Fixed overnight (midnight)",
+    "model": "Our model",
+    "perfect_foresight": "Perfect foresight (upper bound)",
+}
 
 
 def iso(ts):
@@ -101,8 +109,60 @@ except Exception as error:
     print(f"Grid snapshot unavailable: {error}")
     GRID = None
 
+
+def load_backtest():
+    """Step 8 walk-forward results, reshaped for the Receipts tab."""
+    summary = json.loads((STEP8_DIR / "summary.json").read_text())
+    table = pd.read_csv(STEP8_DIR / "summary.csv").set_index("strategy")
+    daily = pd.read_csv(STEP8_DIR / "daily_savings.csv")
+
+    # One row per day, one column per strategy's running total saving
+    daily["date"] = (pd.to_datetime(daily.forecast_at_utc, utc=True)
+                     .dt.tz_convert(config.UK_TIMEZONE).dt.strftime("%Y-%m-%d"))
+    cumulative = daily.pivot(index="date", columns="strategy", values="cumulative_saving_gbp")
+
+    return {
+        "days": summary["evaluated_appliance_days"],
+        "carbon_weight": summary["carbon_weight"],
+        "risk_aversion": summary["risk_aversion"],
+        "pct_of_perfect_foresight": round(float(table.loc["model", "perfect_foresight_saving_captured_pct"]), 1),
+        "strategies": [
+            {
+                "key": key,
+                "label": label,
+                "cost_gbp": round(float(table.loc[key, "cost_gbp"]), 2),
+                "co2_kg": round(float(table.loc[key, "co2_kg"]), 2),
+                "saving_gbp": round(float(table.loc[key, "saving_gbp"]), 2),
+                "saving_kg": round(float(table.loc[key, "saving_kg"]), 2),
+                "pct_captured": round(float(table.loc[key, "perfect_foresight_saving_captured_pct"]), 1),
+            }
+            for key, label in STRATEGY_LABELS.items()
+            if key in table.index
+        ],
+        "cumulative": [
+            {"date": date, **{key: round(float(row[key]), 2)
+                              for key in STRATEGY_LABELS if key in row.index}}
+            for date, row in cumulative.iterrows()
+        ],
+        "battery": {"net_saving_gbp": round(float(summary["battery"]["net_pnl_gbp"]), 2)},
+        "assumptions": summary["assumptions"],
+    }
+
+
+try:
+    BACKTEST = load_backtest()
+except Exception as error:
+    print(f"Backtest results unavailable: {error}")
+    BACKTEST = None
+
 app = FastAPI()
 
+
+@app.get("/api/backtest")
+def backtest():
+    if BACKTEST is None:
+        raise HTTPException(status_code=503, detail="Backtest results unavailable")
+    return BACKTEST
 
 @app.get("/api/health")
 def health():

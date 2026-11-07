@@ -103,3 +103,10 @@
 }
 .rec-card h2 { font-size: 2rem; }
 .rec-card .why { color: var(--muted); }
+
+.chart-card {
+  padding: 16px 16px 12px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+}

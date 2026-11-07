@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import './App.css'
+import ForecastChart from './components/ForecastChart'
 
 const RISK_OPTIONS = [
   {
@@ -42,6 +43,7 @@ function App() {
   const [riskAversion, setRiskAversion] = useState(0.5)
   const [grid, setGrid] = useState(null)
   const [rec, setRec] = useState(null)
+  const [forecast, setForecast] = useState(null)
 
   const selectedRisk = RISK_OPTIONS.find((o) => o.value === riskAversion)
 
@@ -49,6 +51,9 @@ function App() {
     fetch('/api/grid')
       .then((res) => res.json())
       .then((data) => setGrid(data))
+    fetch('/api/forecast')
+      .then((res) => res.json())
+      .then((data) => setForecast(data))
   }, [])
 
   async function getRecommendation() {
@@ -139,6 +144,18 @@ function App() {
           </p>
           <p className="why">Why: {rec.why}</p>
         </section>
+      )}
+      {forecast && (
+        <>
+          <ForecastChart
+            slots={forecast.slots} metric="carbon" unit="gCO₂/kWh"
+            title="Carbon intensity, next 48 hours" rec={rec}
+          />
+          <ForecastChart
+            slots={forecast.slots} metric="price" unit="p/kWh"
+            title="Price, next 48 hours" rec={rec}
+          />
+        </>
       )}
     </main>
   )

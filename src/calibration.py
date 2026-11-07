@@ -1,0 +1,328 @@
+"""Step 6: conformal calibration of the Step 5 quantile bands.
+
+The Step 5 models give p10/p50/p90, but their 80% band is too narrow. This
+step widens each end separately so that roughly 10% of outcomes fall below
+p10 and 10% above p90, which is what the optimiser assumes.
+
+For each target and 12-hour horizon bucket, the lower offset is the
+conformal 90% quantile of (p10 - actual) and the upper offset that of
+(actual - p90). Calibrated p10 = p10 - lower, p90 = p90 + upper. p50 is
+unchanged.
+
+Two versions are reported on the Step 5 test period:
+  fixed    offsets from Step 5's validation window (split conformal)
+  rolling  for each daily cutoff, offsets from the last 28 days of outcomes
+           already published by that cutoff (the primary method, chosen
+           before seeing test results because validation coverage was
+           already low, which signals drift)
+
+Run:  python -m src.calibration
+"""
+
+import argparse
+import json
+import math
+from pathlib import Path
+
+import numpy as np
+import pandas as pd
+
+import config
+from src import models
+
+LEVEL = 0.8  # Target central coverage
+TAIL = (1 - LEVEL) / 2  # 10% allowed below p10 and above p90
+BUCKET_HOURS = 12
+WINDOW_DAYS = 28
+MIN_SCORES = 100  # Below this, rolling falls back to the fixed offsets
+FLOORS = {"price": None, "carbon": 0.0}  # Carbon intensity cannot be negative
+
+
+# --- Core conformal pieces (work on one target's long table) -----------------
+#
+# A long table has one row per forecast and these columns:
+#   forecast_at_utc, horizon_minutes, bucket, actual, label_ready_utc, p10, p50, p90
+
+
+def conformal_quantile(scores, tail=TAIL):
+    """The ceil((n + 1)(1 - tail))-th smallest score, the finite-sample conformal rule.
+
+    If that rank exceeds n (very small samples), the largest score is used.
+    """
+    scores = np.asarray(scores, dtype=float)
+    scores = np.sort(scores[np.isfinite(scores)])
+    if len(scores) == 0:
+        raise ValueError("No finite scores to calibrate on.")
+    rank = math.ceil((len(scores) + 1) * (1 - tail))
+    return float(scores[min(rank, len(scores)) - 1])
+
+
+def horizon_bucket(minutes):
+    return (np.asarray(minutes, dtype=int) // (BUCKET_HOURS * 60)).astype(int)
+
+
+def bucket_label(bucket):
+    return f"{bucket * BUCKET_HOURS}-{(bucket + 1) * BUCKET_HOURS}h"
+
+
+def _offsets(rows):
+    """(lower, upper, n) widening that puts ~10% of these rows outside each end."""
+    rows = rows[np.isfinite(rows["actual"])]
+    lower = conformal_quantile(rows["p10"] - rows["actual"])
+    upper = conformal_quantile(rows["actual"] - rows["p90"])
+    return lower, upper, len(rows)
+
+
+def fixed_offsets(calibration_rows):
+    """{bucket: (lower, upper, n)} from one calibration window."""
+    return {int(bucket): _offsets(rows) for bucket, rows in calibration_rows.groupby("bucket")}
+
+
+def rolling_offsets(pool, cutoff, fallback, window_days=WINDOW_DAYS):
+    """Offsets at `cutoff` from outcomes that were published by then.
+
+    Only rows forecast in the `window_days` before the cutoff whose label
+    became available at or before the cutoff are used, so nothing from the
+    future leaks in. Buckets with fewer than MIN_SCORES outcomes use `fallback`.
+    """
+    known = pool[
+        (pool["label_ready_utc"] <= cutoff)
+        & (pool["forecast_at_utc"] < cutoff)
+        & (pool["forecast_at_utc"] >= cutoff - pd.Timedelta(days=window_days))
+        & np.isfinite(pool["actual"])
+    ]
+    result = {}
+    for bucket in fallback:
+        rows = known[known["bucket"] == bucket]
+        result[bucket] = _offsets(rows) if len(rows) >= MIN_SCORES else fallback[bucket]
+    return result
+
+
+def apply_offsets(rows, offsets, floor=None):
+    """Widen p10 and p90 by the bucket offsets, keeping p10 <= p50 <= p90."""
+    lower = rows["bucket"].map(lambda b: offsets[b][0])
+    upper = rows["bucket"].map(lambda b: offsets[b][1])
+    p10 = np.minimum(rows["p10"] - lower, rows["p50"])
+    p90 = np.maximum(rows["p90"] + upper, rows["p50"])
+    if floor is not None:
+        p10 = np.maximum(p10, floor)
+    return rows.assign(p10=p10, p90=p90)
+
+
+def calibrate_rolling(pool, rows, fallback, floor=None, window_days=WINDOW_DAYS):
+    """Apply rolling offsets cutoff by cutoff. Returns calibrated rows and fallback count."""
+    parts, fallbacks = [], 0
+    for cutoff, group in rows.groupby("forecast_at_utc"):
+        offsets = rolling_offsets(pool, cutoff, fallback, window_days)
+        fallbacks += sum(offsets[b] is fallback[b] for b in offsets)
+        parts.append(apply_offsets(group, offsets, floor))
+    return pd.concat(parts).loc[rows.index], fallbacks
+
+
+def coverage(rows):
+    """Coverage, tail rates, width and pinball loss for rows with an actual."""
+    rows = rows[np.isfinite(rows["actual"])]
+    y = rows["actual"].to_numpy()
+    p10, p50, p90 = (rows[c].to_numpy() for c in ("p10", "p50", "p90"))
+    return {
+        "rows": len(rows),
+        "coverage_80_pct": 100 * np.mean((y >= p10) & (y <= p90)),
+        "below_p10_pct": 100 * np.mean(y < p10),
+        "below_p50_pct": 100 * np.mean(y < p50),
+        "above_p90_pct": 100 * np.mean(y > p90),
+        "mean_width": float(np.mean(p90 - p10)),
+        "pinball_p10": models.pinball(y, p10, 0.1),
+        "pinball_p90": models.pinball(y, p90, 0.9),
+    }
+
+
+# --- Step 5 integration ------------------------------------------------------
+
+
+def rebuild_predictions(features, model_dir, validation_days=30, test_days=60, purge_hours=52):
+    """Predict every post-training row with the saved Step 5 models.
+
+    Uses Step 5's own chronological split, so the models never saw these rows.
+    Returns {target: long table} with a `split` column: validation, gap or test.
+    """
+    train, valid, test = models.chronological_split(features, validation_days, test_days, purge_hours)
+    times = pd.to_datetime(features["forecast_at_utc"], utc=True)
+    first_valid = pd.to_datetime(valid["forecast_at_utc"], utc=True).min()
+    post = features.loc[times >= first_valid]
+    split = pd.Series("gap", index=post.index)
+    split[split.index.isin(valid.index)] = "validation"
+    split[split.index.isin(test.index)] = "test"
+
+    tables = {}
+    for source, (target, _) in models.TARGETS.items():
+        predicted = models.predict_quantiles(
+            models.load_models(model_dir, source), post, carbon=(source == "carbon")
+        )
+        table = pd.DataFrame({
+            "forecast_at_utc": pd.to_datetime(post["forecast_at_utc"], utc=True),
+            "target_at_utc": pd.to_datetime(post["target_at_utc"], utc=True),
+            "horizon_minutes": post["horizon_minutes"].astype(int),
+            "split": split,
+            "actual": pd.to_numeric(post[target], errors="coerce"),
+            "label_ready_utc": pd.to_datetime(post[models.LABEL_READY[source]], utc=True),
+            "p10": predicted[:, 0],
+            "p50": predicted[:, 1],
+            "p90": predicted[:, 2],
+        }, index=post.index)
+        table["bucket"] = horizon_bucket(table["horizon_minutes"])
+        tables[source] = table
+    return tables
+
+
+def _check_matches_step5(tables, step5_dir):
+    """Confirm the rebuilt test predictions equal Step 5's saved ones."""
+    path = Path(step5_dir) / "test_predictions.csv"
+    if not path.is_file():
+        return None
+    saved = pd.read_csv(path)
+    worst = 0.0
+    for source, table in tables.items():
+        test = table[table["split"] == "test"]
+        for q in ("p10", "p50", "p90"):
+            worst = max(worst, float(np.max(np.abs(test[q].to_numpy() - saved[f"{source}_{q}"].to_numpy()))))
+    return worst
+
+
+def run(features, *, model_dir=Path("results/step5"), out_dir=Path("results/step6"),
+        window_days=WINDOW_DAYS, validation_days=30, test_days=60, purge_hours=52):
+    out_dir = Path(out_dir)
+    out_dir.mkdir(parents=True, exist_ok=True)
+    tables = rebuild_predictions(features, model_dir, validation_days, test_days, purge_hours)
+    mismatch = _check_matches_step5(tables, model_dir)
+    if mismatch is not None:
+        print(f"Rebuilt test predictions vs Step 5 saved: max difference {mismatch:.2e}")
+
+    report, wide, saved_offsets = [], None, {}
+    for source, table in tables.items():
+        floor = FLOORS[source]
+        calibration_rows = table[table["split"] == "validation"]
+        test = table[table["split"] == "test"]
+        fixed = fixed_offsets(calibration_rows)
+        versions = {
+            "raw": test,
+            "fixed": apply_offsets(test, fixed, floor),
+        }
+        versions["rolling"], fallbacks = calibrate_rolling(table, test, fixed, floor, window_days)
+        print(f"{source}: rolling used the fixed fallback in {fallbacks} of "
+              f"{test['forecast_at_utc'].nunique() * len(fixed)} cutoff-buckets.")
+
+        for method, rows in versions.items():
+            report.append({"target": source, "method": method, "horizon": "all", **coverage(rows)})
+            for bucket, part in rows.groupby("bucket"):
+                report.append({"target": source, "method": method,
+                               "horizon": bucket_label(bucket), **coverage(part)})
+
+        columns = {
+            f"{source}_actual": test["actual"],
+            f"{source}_p50": test["p50"],
+            **{f"{source}_{m}_{q}": versions[m][q] for m in versions for q in ("p10", "p90")},
+        }
+        block = pd.DataFrame(columns)
+        if wide is None:
+            wide = test[["forecast_at_utc", "target_at_utc", "horizon_minutes"]].join(block)
+        else:
+            wide = wide.join(block)
+
+        # Latest rolling offsets, for widening live forecasts in the app.
+        as_of = table["label_ready_utc"].max()
+        latest = rolling_offsets(table, as_of + pd.Timedelta(seconds=1), fixed, window_days)
+        saved_offsets[source] = {
+            "rolling_latest": {bucket_label(b): _offset_dict(v) for b, v in latest.items()},
+            "fixed_validation": {bucket_label(b): _offset_dict(v) for b, v in fixed.items()},
+            "as_of_utc": str(as_of),
+        }
+
+    report = pd.DataFrame(report)
+    report.to_csv(out_dir / "coverage.csv", index=False, float_format="%.4f")
+    wide.to_csv(out_dir / "calibrated_test_predictions.csv", index=False)
+    (out_dir / "offsets.json").write_text(json.dumps({
+        "level": LEVEL,
+        "bucket_hours": BUCKET_HOURS,
+        "window_days": window_days,
+        "usage": "p10 -= lower, p90 += upper for the matching horizon bucket; keep p10 <= p50 <= p90.",
+        **saved_offsets,
+    }, indent=2) + "\n")
+    plot(report, out_dir / "calibration.png")
+
+    print("\nTest-period calibration (all horizons):")
+    shown = report[report["horizon"] == "all"].drop(columns="horizon")
+    print(shown.to_string(index=False, float_format=lambda v: f"{v:.2f}"))
+    print(f"\nSaved coverage.csv, calibrated_test_predictions.csv, offsets.json and calibration.png to {out_dir}")
+    return report
+
+
+def _offset_dict(value):
+    lower, upper, n = value
+    return {"lower": round(lower, 4), "upper": round(upper, 4), "n": int(n)}
+
+
+def plot(report, path):
+    """Coverage by horizon, and how often outcomes fall below each quantile."""
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+
+    colours = {"raw": "#9aa0a6", "fixed": "#e8a33d", "rolling": "#2e7d5b"}
+    names = {"raw": "Step 5 raw", "fixed": "Fixed (validation window)", "rolling": f"Rolling ({WINDOW_DAYS} days)"}
+    fig, axes = plt.subplots(2, 2, figsize=(12, 8.5))
+    for column, source in enumerate(models.TARGETS):
+        part = report[report["target"] == source]
+        by_horizon = part[part["horizon"] != "all"]
+        horizons = list(dict.fromkeys(by_horizon["horizon"]))
+        ax = axes[0, column]
+        width = 0.26
+        for i, method in enumerate(colours):
+            values = by_horizon[by_horizon["method"] == method].set_index("horizon").loc[horizons]
+            ax.bar(np.arange(len(horizons)) + (i - 1) * width, values["coverage_80_pct"],
+                   width, color=colours[method], label=names[method])
+        ax.axhline(80, color="#333", linestyle="--", linewidth=1, label="Target 80%")
+        ax.set_xticks(np.arange(len(horizons)), horizons)
+        ax.set_ylim(0, 100)
+        ax.set_title(f"{source.title()}: share inside the 80% band, by hours ahead")
+        ax.set_ylabel("% of test outcomes")
+        ax.legend(fontsize=8, loc="lower right")
+
+        ax = axes[1, column]
+        overall = part[part["horizon"] == "all"].set_index("method")
+        nominal = [10, 50, 90]
+        ax.plot([0, 100], [0, 100], color="#333", linestyle="--", linewidth=1, label="Perfectly calibrated")
+        for method in colours:
+            row = overall.loc[method]
+            observed = [row["below_p10_pct"], row["below_p50_pct"], 100 - row["above_p90_pct"]]
+            ax.plot(nominal, observed, marker="o", color=colours[method], label=names[method])
+        ax.set_xticks(nominal, ["p10", "p50", "p90"])
+        ax.set_xlim(0, 100)
+        ax.set_ylim(0, 100)
+        ax.set_title(f"{source.title()}: % of outcomes below each quantile")
+        ax.set_ylabel("% of test outcomes below")
+        ax.legend(fontsize=8, loc="upper left")
+    fig.suptitle("Grid Advisor | Step 6 conformal calibration, test period", fontweight="bold")
+    fig.tight_layout()
+    fig.savefig(path, dpi=130)
+    plt.close(fig)
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser.add_argument("--features", type=Path, default=config.DATA_DIR / "features.parquet")
+    parser.add_argument("--model-dir", type=Path, default=Path("results/step5"))
+    parser.add_argument("--out-dir", type=Path, default=Path("results/step6"))
+    parser.add_argument("--window-days", type=int, default=WINDOW_DAYS)
+    parser.add_argument("--validation-days", type=int, default=30)
+    parser.add_argument("--test-days", type=int, default=60)
+    parser.add_argument("--purge-hours", type=int, default=52)
+    args = parser.parse_args()
+    if not args.features.is_file():
+        parser.error(f"Missing {args.features}; run Steps 2 and 3 first.")
+    run(models._read_table(args.features), model_dir=args.model_dir, out_dir=args.out_dir,
+        window_days=args.window_days, validation_days=args.validation_days,
+        test_days=args.test_days, purge_hours=args.purge_hours)
+
+
+if __name__ == "__main__":
+    main()

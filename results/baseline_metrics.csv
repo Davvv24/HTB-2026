@@ -1,0 +1,5 @@
+target,baseline,unit,mae,rmse,common_slots,available_slots,total_labeled_slots,coverage_pct
+price,yesterday,p/kWh,7.9159,11.7369,2882,2882,5760,50.0347
+price,last_week,p/kWh,11.9796,16.2377,2882,5760,5760,100.0000
+carbon,yesterday,gCO2/kWh,42.0424,55.3076,2642,2642,5760,45.8681
+carbon,last_week,gCO2/kWh,58.0734,70.1091,2642,5760,5760,100.0000

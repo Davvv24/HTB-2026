@@ -20,6 +20,13 @@ const RISK_OPTIONS = [
   },
 ]
 
+const APPLIANCE_LABELS = {
+  washing_machine: 'Washing machine',
+  dishwasher: 'Dishwasher',
+  tumble_dryer: 'Tumble dryer',
+  ev: 'Electric car',
+}
+
 const METRICS = {
   price: { label: 'Price', unit: 'p/kWh', title: 'Price, next 48 hours' },
   carbon: { label: 'Carbon', unit: 'gCO₂/kWh', title: 'Carbon intensity, next 48 hours' },
@@ -34,7 +41,7 @@ function nextOccurrence(hhmm, from = new Date()) {
   return d
 }
 
-// UTC timestamp from the API -> "Mon 02:30" in UK time
+// UTC timestamp -> "Mon 02:30" in UK time
 function ukTime(iso) {
   return new Date(iso).toLocaleTimeString('en-GB', {
     weekday: 'short', hour: '2-digit', minute: '2-digit', timeZone: 'Europe/London',
@@ -49,12 +56,21 @@ function App() {
   const [riskAversion, setRiskAversion] = useState(0.5)
   const [grid, setGrid] = useState(null)
   const [rec, setRec] = useState(null)
+  const [recFor, setRecFor] = useState(null)
+  const [requestCount, setRequestCount] = useState(0)
+  const [loading, setLoading] = useState(false)
   const [forecast, setForecast] = useState(null)
   const [metric, setMetric] = useState('price')
   const [error, setError] = useState(null)
 
   const selectedRisk = RISK_OPTIONS.find((o) => o.value === riskAversion)
   const chart = METRICS[metric]
+
+  // End of the confirmed (published) prices, if any
+  const lastPublished = forecast?.slots.filter((s) => s.price_published).at(-1)
+  const confirmedUntil = lastPublished
+    ? new Date(new Date(lastPublished.time).getTime() + 30 * 60 * 1000).toISOString()
+    : null
 
   useEffect(() => {
     fetch('/api/grid')
@@ -66,28 +82,38 @@ function App() {
   }, [])
 
   async function getRecommendation() {
-    const start = startAfter ? nextOccurrence(startAfter) : new Date()
+    if (!forecast) return
+    // The forecast is a historical replay, so "now" is when it was issued
+    const now = new Date(forecast.data_as_of)
+    const start = startAfter ? nextOccurrence(startAfter, now) : now
     const deadline = nextOccurrence(finishBy, start)
 
-    const res = await fetch('/api/recommend', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        appliance,
-        earliest_start: start.toISOString(),
-        deadline: deadline.toISOString(),
-        carbon_weight: carbonWeight / 100,
-        risk_aversion: riskAversion,
-      }),
-    })
-    const data = await res.json()
-    if (!res.ok) {
-      setError(data.detail)
-      setRec(null)
-      return
+    setLoading(true)
+    try {
+      const res = await fetch('/api/recommend', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          appliance,
+          earliest_start: start.toISOString(),
+          deadline: deadline.toISOString(),
+          carbon_weight: carbonWeight / 100,
+          risk_aversion: riskAversion,
+        }),
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        setError(data.detail)
+        setRec(null)
+        return
+      }
+      setError(null)
+      setRec(data)
+      setRecFor({ appliance, deadline: deadline.toISOString(), risk: selectedRisk.label })
+      setRequestCount((n) => n + 1)
+    } finally {
+      setLoading(false)
     }
-    setError(null)
-    setRec(data)
   }
 
   return (
@@ -99,6 +125,16 @@ function App() {
           ? `Grid carbon intensity now: ${grid.carbon_intensity} gCO₂/kWh`
           : 'Loading grid data…'}
       </p>
+
+      {forecast && (
+        <p className="grid-status">
+          Demo: replaying our model's forecast issued{' '}
+          {new Date(forecast.data_as_of).toLocaleString('en-GB', {
+            weekday: 'short', day: 'numeric', month: 'short',
+            hour: '2-digit', minute: '2-digit', timeZone: 'Europe/London',
+          })}
+        </p>
+      )}
 
       <div className="layout">
         <section className="controls">
@@ -154,8 +190,8 @@ function App() {
             <p className="hint">{selectedRisk.hint}</p>
           </fieldset>
 
-          <button className="primary" onClick={getRecommendation}>
-            Find the best time
+          <button className="primary" onClick={getRecommendation} disabled={loading || !forecast}>
+            {loading ? 'Finding the best time…' : 'Find the best time'}
           </button>
         </section>
 
@@ -163,7 +199,7 @@ function App() {
           {error && <p className="placeholder">{error}</p>}
 
           {rec ? (
-            <section className="rec-card">
+            <section className="rec-card" key={requestCount}>
               <h2>Run it at {ukTime(rec.start)}</h2>
               {rec.saving_gbp > 0 || rec.saving_co2_kg > 0 ? (
                 <p>
@@ -173,7 +209,23 @@ function App() {
               ) : (
                 <p>Good news: starting straight away is already the best option in your time window.</p>
               )}
-              {rec.why && <p className="why">Why: {rec.why}</p>}
+              <p className="for-line">
+                For: {APPLIANCE_LABELS[recFor.appliance]}, finishing by {ukTime(recFor.deadline)},{' '}
+                {recFor.risk.toLowerCase()}.
+              </p>
+              <p className="for-line">
+                {!rec.uses_forecast
+                  ? 'Based on confirmed prices from Octopus.'
+                  : confirmedUntil
+                    ? `Prices after ${ukTime(confirmedUntil)} aren't out yet, so this plan uses our forecast for them.`
+                    : 'This plan uses our price forecast.'}
+              </p>
+              {rec.why && (
+                <details className="why">
+                  <summary>Why this time?</summary>
+                  <p>{rec.why}</p>
+                </details>
+              )}
             </section>
           ) : (
             !error && (
@@ -207,6 +259,7 @@ function App() {
               unit={chart.unit}
               title={chart.title}
               rec={rec}
+              confirmedUntil={confirmedUntil}
             />
           ) : (
             <p className="placeholder">Loading forecast…</p>

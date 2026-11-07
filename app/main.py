@@ -14,7 +14,7 @@ def grid():
     return {
         "data_as_of": "2026-11-07T18:00:00Z",
         "cached": True,
-        "carbon_intensity": 145,
+        "carbon_intensity": 200,
         "mix_percent": {
             "wind": 42, "gas": 25, "nuclear": 15, "solar": 3,
             "imports": 8, "biomass": 5, "other": 2,

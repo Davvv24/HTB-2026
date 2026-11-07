@@ -1,0 +1,5 @@
+split,target,unit,rows,mae,rmse,pinball_p10,pinball_p50,pinball_p90,coverage_80_pct,mean_interval_width
+validation,price,p/kWh,2688,3.8937,5.5658,0.9966,1.9468,1.0534,61.8304,9.3018
+test,price,p/kWh,5760,8.4581,10.2981,1.8360,4.2291,3.4318,34.9306,11.5437
+validation,carbon,gCO2/kWh,2688,28.4203,34.5636,5.7352,14.2102,7.0763,58.3705,64.1882
+test,carbon,gCO2/kWh,5760,23.7357,30.5304,5.1546,11.8678,5.7024,65.0000,59.1416

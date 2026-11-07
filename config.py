@@ -6,12 +6,20 @@ ROOT_DIR = Path(__file__).resolve().parent
 DATA_DIR = ROOT_DIR / "data"
 CACHE_DIR = DATA_DIR / "cache"
 SAMPLES_DIR = DATA_DIR / "samples"
+HISTORY_CACHE_DIR = CACHE_DIR / "history"
 
 AGILE_REGION = "N"  # Edinburgh / South Scotland
 CARBON_REGION_ID = 2  # NESO South Scotland
 UK_TIMEZONE = "Europe/London"
 CHECK_DAYS = 3
 HTTP_TIMEOUT = (10, 15)  # Connect and read timeouts, in seconds
+HISTORY_MONTHS = 12
+HISTORY_CHUNK_DAYS = 28
+HISTORY_WORKERS = 8
+ERA5_DELAY_DAYS = 7
+WEATHER_HISTORY_MODEL = "gfs_seamless"
+WEATHER_LEAD_DAYS = (1, 2, 3)
+WEATHER_RELEASE_BUFFER_HOURS = 12
 
 OCTOPUS_URL = "https://api.octopus.energy/v1"
 CARBON_URL = "https://api.carbonintensity.org.uk"
@@ -21,6 +29,7 @@ WEATHER_URLS = {
     "historical_forecast": "https://historical-forecast-api.open-meteo.com/v1/forecast",
     "archive": "https://archive-api.open-meteo.com/v1/archive",
     "single_run": "https://single-runs-api.open-meteo.com/v1/forecast",
+    "previous_runs": "https://previous-runs-api.open-meteo.com/v1/forecast",
 }
 
 WEATHER_POINTS = (

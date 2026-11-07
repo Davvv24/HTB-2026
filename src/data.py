@@ -46,7 +46,8 @@ def _octopus_pages(url, params=None):
 def discover_agile_product(at: datetime) -> dict:
     """Find the newest available domestic Agile import product."""
     products = []
-    for product in _octopus_pages(f"{config.OCTOPUS_URL}/products/"):
+    params = {"available_at": at.astimezone(UTC).isoformat(timespec="seconds")}
+    for product in _octopus_pages(f"{config.OCTOPUS_URL}/products/", params):
         if (
             product["code"].startswith("AGILE-")
             and product["direction"] == "IMPORT"
@@ -65,10 +66,8 @@ def discover_agile_product(at: datetime) -> dict:
     return max(products, key=lambda p: datetime.fromisoformat(p["available_from"]))
 
 
-def fetch_agile_rates(start: datetime, end: datetime, at: datetime) -> list[dict]:
-    """Get published region N unit rates, in pence per kWh including VAT."""
-    product = discover_agile_product(at)
-    product_code = product["code"]
+def resolve_agile_tariff(product_code: str) -> dict:
+    """Resolve the regional monthly direct-debit tariff and its unit-rate URL."""
     detail = _get_json(f"{config.OCTOPUS_URL}/products/{product_code}/")
     tariffs = detail["single_register_electricity_tariffs"]
     tariff = tariffs[f"_{config.AGILE_REGION}"]["direct_debit_monthly"]
@@ -78,22 +77,33 @@ def fetch_agile_rates(start: datetime, end: datetime, at: datetime) -> list[dict
     )
     if rates_url is None:
         raise DataFetchError(f"No unit-rate link found for {tariff['code']}.")
+    return {"product_code": product_code, "tariff_code": tariff["code"], "rates_url": rates_url}
 
-    rows = _octopus_pages(rates_url, {
+
+def fetch_agile_tariff_rates(tariff: dict, start: datetime, end: datetime) -> list[dict]:
+    """Get published half-hourly unit rates in pence per kWh including VAT."""
+    rows = _octopus_pages(tariff["rates_url"], {
         "period_from": _utc_minute(start),
         "period_to": _utc_minute(end),
-        "page_size": 250,
+        "page_size": 1500,
     })
     return [
         {
             "valid_from": row["valid_from"],
             "valid_to": row["valid_to"],
             "price_p_kwh_inc_vat": row["value_inc_vat"],
-            "product_code": product_code,
-            "tariff_code": tariff["code"],
+            "product_code": tariff["product_code"],
+            "tariff_code": tariff["tariff_code"],
         }
         for row in _in_window(rows, "valid_from", start, end)
     ]
+
+
+def fetch_agile_rates(start: datetime, end: datetime, at: datetime) -> list[dict]:
+    """Get published regional rates for the product available at the given time."""
+    product = discover_agile_product(at)
+    tariff = resolve_agile_tariff(product["code"])
+    return fetch_agile_tariff_rates(tariff, start, end)
 
 
 def _mix_columns(row):
@@ -167,12 +177,12 @@ def fetch_elexon_system_prices(first: date, last: date) -> list[dict]:
     return [{key: row[key] for key in keys} for row in rows]
 
 
-def fetch_weather(source: str, **window) -> list[dict]:
+def fetch_weather(source: str, *, fields=config.WEATHER_FIELDS, **window) -> list[dict]:
     """Fetch hourly weather at the four sample points, with wind in m/s."""
     params = {
         "latitude": ",".join(str(lat) for _, lat, _ in config.WEATHER_POINTS),
         "longitude": ",".join(str(lon) for _, _, lon in config.WEATHER_POINTS),
-        "hourly": ",".join(config.WEATHER_FIELDS),
+        "hourly": ",".join(fields),
         "timezone": "GMT",
         "cell_selection": "nearest",
         "wind_speed_unit": "ms",
@@ -186,7 +196,7 @@ def fetch_weather(source: str, **window) -> list[dict]:
             row = {
                 "location": point[0],
                 "time_utc": f"{time}Z",
-                **{field: hourly[field][index] for field in config.WEATHER_FIELDS},
+                **{field: hourly[field][index] for field in fields},
             }
             if "run" in window:
                 row["model_run_at_utc"] = f"{window['run']}Z"

@@ -1,7 +1,41 @@
- HEAD
 # Grid Advisor
 
-Grid Advisor will help households choose when to run appliances by showing the trade-off between electricity cost, carbon and convenience. The first milestone is a data check for Edinburgh and South Scotland.
+Grid Advisor is a HackTheBurgh 2026 project that will help households choose when to run appliances by showing the trade-off between electricity cost, carbon and convenience. The first region is Edinburgh and South Scotland.
+
+## Run Step 2
+
+Set up a Python 3.11+ virtual environment from the project folder and install the dependencies.
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+python -m pip install -r requirements.txt
+python -m src.build_dataset
+```
+
+The command downloads 12 months by default. Use `--months 24` for two years or `--start YYYY-MM-DD --end YYYY-MM-DD` to set the UTC window explicitly. The start is inclusive and the end is exclusive. The default end leaves one full day for outturns to arrive. The script prints coverage and basic stats, writes `data/dataset.parquet`, and plots the last two weeks in `data/dataset_sanity.png`.
+
+The pipeline saves up to 28 days per source request in `data/cache/history/`. It reuses those chunks on a rerun. If a request fails, the merge uses cached rows for the requested timestamps wherever available. Remaining gaps stay null. The UTC join keeps a unique row for every half-hour, including the UK’s 46-slot spring settlement day and 50-slot autumn settlement day.
+
+Try the bundled three-day sample without internet. The sample includes GFS forecast history and the matching energy data.
+
+```bash
+python -m src.build_dataset --offline --start 2026-11-03 --end 2026-11-06 --output data/sample_dataset.parquet
+```
+
+To rebuild from the full Step 2 data bundle, extract it into the project folder and run the same command with `--start 2025-11-06 --end 2026-11-06`. Omit `--output` to write `data/dataset.parquet`.
+
+| Dataset columns | Source and timing |
+| --- | --- |
+| `time_utc`, `price_p_kwh_inc_vat`, `price_tariff_code` | The UTC slot start, published Octopus Agile rate, and region N tariff active in that historical period. |
+| `gb_carbon_actual_gco2_kwh`, `gb_carbon_actual_suspect` | NESO’s GB actual value and a flag for a zero reading in a slot where the GB fuel mix reports gas. |
+| `*_carbon_forecast_archive_gco2_kwh`, `gb_*_pct`, `south_scotland_*_pct` | NESO forecasts by valid time and GB and South Scotland fuel shares. The archived carbon forecast rows lack issue timestamps. |
+| `demand_mw`, `transmission_demand_mw`, `demand_published_at_utc` | Elexon initial demand outturns and the API’s publication timestamp. |
+| `weather_forecast_*_previous_day1/2/3` | NOAA GFS forecasts at 24h, 48h and 72h leads from Open-Meteo Previous Runs, at four sites. Each half-hour uses the value from its UTC hour. |
+| `weather_day1/2/3_assumed_available_at_utc` | Assumed availability equals the valid hour minus the archived lead time plus a 12-hour release buffer. These estimates are used to check availability against a decision cutoff. |
+| `era5_*` | ERA5 reanalysis for diagnostics. Requests stop seven days before today to allow for archive latency. |
+
+The verified full run contains 17,520 slots from 6 November 2025 through 5 November 2026 UTC. Each has an Agile price, GB actual carbon value and Elexon demand value. One GB actual carbon value was flagged for review. The GFS archive had a 29-hour gap in 72-hour-lead cloud cover. Use ERA5 for historical diagnostics and keep the archived NESO forecasts separate from any forecast correction backtest until the issue times can be established. [Previous Runs API](https://open-meteo.com/en/docs/previous-runs-api)
 
 ## Run Step 1
 
@@ -46,7 +80,3 @@ Open-Meteo’s historical forecast series stitches early hours from several runs
 The bundled samples are for checking API shape and offline behaviour. Historical training and evaluation need a larger dataset with timestamps for data availability.
 
 Weather data from [Open-Meteo](https://open-meteo.com/) under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/), reshaped to one CSV row per site and hour. Other samples come from the public Octopus Energy, NESO and Elexon Insights APIs linked above.
-
-# HTB-2026
-A GitHub repo for HTB 2026
- origin/main

@@ -24,7 +24,19 @@ STRATEGY_LABELS = {  # Display order and names
     "model": "Our model",
     "perfect_foresight": "Perfect foresight (upper bound)",
 }
-
+DAYS_SHOWN = 30
+HOUSEHOLDS = {
+    "student_flat": {
+        "label": "Student flat",
+        "description": "Washing machine, dishwasher and tumble dryer, once a day",
+        "monthly_goal_gbp": 25.0,
+    },
+    "battery_home": {
+        "label": "Home with a battery",
+        "description": "A home battery that charges when power is cheap and runs the house when it's dear",
+        "monthly_goal_gbp": 20.0,
+    },
+}
 
 def iso(ts):
     return ts.strftime("%Y-%m-%dT%H:%M:%SZ")
@@ -155,8 +167,87 @@ except Exception as error:
     print(f"Backtest results unavailable: {error}")
     BACKTEST = None
 
+def local_date(series):
+    """UTC timestamps -> 'YYYY-MM-DD' in UK time."""
+    return (pd.to_datetime(series, utc=True)
+            .dt.tz_convert(config.UK_TIMEZONE).dt.strftime("%Y-%m-%d"))
+
+
+def household_summary(key, daily):
+    """Goal, streak and points from a table of date, saving_gbp, saving_kg (one row per day)."""
+    recent = daily.sort_values("date").tail(DAYS_SHOWN)
+    saved_money = (recent.saving_gbp > 0).tolist()
+
+    # A streak counts days that didn't lose money: "do nothing today" is fine
+    no_loss = (recent.saving_gbp >= 0).tolist()
+
+    # Current streak: count back from the latest day until a day that lost money
+    streak = 0
+    for good in reversed(no_loss):
+        if not good:
+            break
+        streak += 1
+
+    # Best streak: longest run of no-loss days
+    best = run = 0
+    for good in no_loss:
+        run = run + 1 if good else 0
+        best = max(best, run)
+
+    total = float(recent.saving_gbp.sum())
+    goal = HOUSEHOLDS[key]["monthly_goal_gbp"]
+    co2_saved = float(recent.saving_kg.clip(lower=0).sum())
+
+    return {
+        "key": key,
+        **HOUSEHOLDS[key],
+        "simulated": True,
+        "days": len(recent),
+        "saved_gbp": round(total, 2),
+        "saved_co2_kg": round(float(recent.saving_kg.sum()), 2),
+        "goal_progress_pct": round(min(total / goal, 1) * 100),
+        "goal_reached": total >= goal,
+        "current_streak_days": streak,
+        "best_streak_days": best,
+        "days_saved": sum(saved_money),
+        "green_points": 10 * sum(saved_money) + int(co2_saved * 10),
+        "daily": [
+            {"date": date, "saving_gbp": round(float(gbp), 2)}
+            for date, gbp in zip(recent.date, recent.saving_gbp)
+        ],
+    }
+
+
+def load_households():
+    savings = pd.read_csv(STEP8_DIR / "daily_savings.csv")
+    student = savings[savings.strategy == "model"].copy()
+    student["date"] = local_date(student.forecast_at_utc)
+
+    battery = pd.read_csv(STEP8_DIR / "battery_daily.csv")
+    battery["date"] = local_date(battery.forecast_at_utc)
+    battery = battery.rename(columns={"pnl_gbp": "saving_gbp", "saving_co2_kg": "saving_kg"})
+
+    columns = ["date", "saving_gbp", "saving_kg"]
+    return [
+        household_summary("student_flat", student[columns]),
+        household_summary("battery_home", battery[columns]),
+    ]
+
+
+try:
+    HOUSEHOLD_DATA = load_households()
+except Exception as error:
+    print(f"Household data unavailable: {error}")
+    HOUSEHOLD_DATA = None
+
+
 app = FastAPI()
 
+@app.get("/api/households")
+def households():
+    if HOUSEHOLD_DATA is None:
+        raise HTTPException(status_code=503, detail="Household data unavailable")
+    return {"households": HOUSEHOLD_DATA}
 
 @app.get("/api/backtest")
 def backtest():
@@ -231,3 +322,4 @@ def recommend(req: RecommendRequest):
 
     result.update(data_as_of=iso(ISSUED_AT), cached=True, historical_demo=True)
     return result
+

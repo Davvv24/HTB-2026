@@ -36,3 +36,11 @@ WEATHER_FIELDS = (
     "shortwave_radiation",
     "temperature_2m",
 )
+
+# Step 7 appliance presets: (display name, average kW while running, half-hour slots).
+# Typical values, chosen as assumptions. Energy per run = kW x slots x 0.5 h.
+APPLIANCES = {
+    "washing_machine": ("Washing machine", 0.5, 4),  # 1.0 kWh over 2 h
+    "dishwasher": ("Dishwasher", 0.6, 4),  # 1.2 kWh over 2 h
+    "tumble_dryer": ("Tumble dryer", 2.0, 3),  # 3.0 kWh over 1.5 h
+}

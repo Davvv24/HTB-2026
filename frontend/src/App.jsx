@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import './App.css'
 import ForecastChart from './components/ForecastChart'
 import { nextOccurrence, requestJson, savingText } from './request'
+import Receipts from './components/Receipts'
 
 const RISK_OPTIONS = [
   {
@@ -41,6 +42,7 @@ function ukTime(iso) {
 }
 
 function App() {
+  const [view, setView] = useState('plan')
   const [appliance, setAppliance] = useState('washing_machine')
   const [startAfter, setStartAfter] = useState('')
   const [finishBy, setFinishBy] = useState('07:00')
@@ -125,8 +127,24 @@ function App() {
           })}
         </p>
       )}
+      <div className="segmented small tabs">
+        <button
+          type="button"
+          aria-pressed={view === 'plan'}
+          onClick={() => setView('plan')}
+        >
+          Plan
+        </button>
+        <button
+          type="button"
+          aria-pressed={view === 'receipts'}
+          onClick={() => setView('receipts')}
+        >
+          Receipts
+        </button>
+      </div>
 
-      <div className="layout">
+      <div className="layout" hidden={view !== 'plan'}>
         <section className="controls">
           <label className="field">
             Appliance
@@ -273,6 +291,7 @@ function App() {
           )}
         </div>
       </div>
+      {view === 'receipts' && <Receipts />}
     </main>
   )
 }

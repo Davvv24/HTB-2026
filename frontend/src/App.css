@@ -179,3 +179,27 @@
 .compare-label { color: var(--muted); font-size: 0.85rem; }
 .compare-value { font-size: 1.5rem; font-weight: 700; }
 .compare-sub { color: var(--muted); }
+
+/* Tabs and Receipts */
+[hidden] { display: none !important; }
+
+.tabs { justify-self: start; }
+
+.receipts { display: grid; gap: 16px; }
+
+.results-table { width: 100%; border-collapse: collapse; }
+.results-table th,
+.results-table td {
+  text-align: left;
+  padding: 10px 8px;
+  border-bottom: 1px solid var(--line);
+}
+.results-table th { color: var(--muted); font-weight: 600; font-size: 0.9rem; }
+.results-table tr.highlight td {
+  font-weight: 700;
+  background: rgba(26, 127, 75, 0.06);
+}
+
+.receipts h3 { font-size: 1rem; margin: 0 0 6px; }
+.receipts summary { cursor: pointer; font-weight: 600; }
+.receipts ul { margin: 12px 0 0; padding-left: 20px; color: var(--muted); }

@@ -1,10 +1,14 @@
-import { useEffect, useState } from 'react'
+import { lazy, Suspense, useEffect, useState } from 'react'
 import './App.css'
-import ForecastChart from './components/ForecastChart'
 import { nextOccurrence, requestJson, savingText } from './request'
-import Receipts from './components/Receipts'
 import WhyPanel from './components/WhyPanel'
-import Savings from './components/Savings'
+
+// Charts pull in Plotly (about 1.5 MB gzipped), so they load after the page appears.
+const ForecastChart = lazy(() => import('./components/ForecastChart'))
+const Receipts = lazy(() => import('./components/Receipts'))
+const Savings = lazy(() => import('./components/Savings'))
+
+const REFRESH_MS = 5 * 60 * 1000 // Re-check live data every 5 minutes
 
 const RISK_OPTIONS = [
   {
@@ -43,6 +47,18 @@ function ukTime(iso) {
   })
 }
 
+// One line saying where the forecast comes from and how fresh it is
+function forecastStatus(forecast) {
+  if (forecast.historical_demo) {
+    return `Demo: replaying our model's forecast issued ${ukTime(forecast.data_as_of)}`
+  }
+  const checked = forecast.last_updated ? ` Prices checked ${ukTime(forecast.last_updated)}.` : ''
+  if (forecast.source === 'model') {
+    return `Live: our model's forecast from ${ukTime(forecast.data_as_of)}, with Octopus's confirmed prices where published.${checked}`
+  }
+  return `Live: Octopus's confirmed prices and National Grid's carbon forecast (our model forecast isn't ready yet).${checked}`
+}
+
 function App() {
   const [view, setView] = useState('plan')
   const [appliance, setAppliance] = useState('washing_machine')
@@ -70,20 +86,25 @@ function App() {
     : null
 
   useEffect(() => {
-    requestJson('/api/grid')
-      .then((data) => setGrid(data))
-      .catch((error) => setError(error.message))
-    requestJson('/api/forecast')
-      .then((data) => setForecast(data))
-      .catch((error) => setError(error.message))
+    function load() {
+      requestJson('/api/grid')
+        .then((data) => setGrid(data))
+        .catch((error) => setError(error.message))
+      requestJson('/api/forecast')
+        .then((data) => setForecast(data))
+        .catch((error) => setError(error.message))
+    }
+    load()
+    const timer = setInterval(load, REFRESH_MS)
+    return () => clearInterval(timer)
   }, [])
 
   async function getRecommendation() {
     if (!forecast) return
-    // The forecast is a historical replay, so "now" is when it was issued
     setLoading(true)
     try {
-      const now = new Date(forecast.data_as_of)
+      // Live data plans from the real time; the historical replay from its issue time
+      const now = forecast.historical_demo ? new Date(forecast.data_as_of) : new Date()
       const start = startAfter ? nextOccurrence(startAfter, now) : now
       const deadline = nextOccurrence(finishBy, start)
       const data = await requestJson('/api/recommend', {
@@ -118,15 +139,13 @@ function App() {
         {grid
           ? `GB grid carbon intensity at ${ukTime(grid.data_as_of)}: ${grid.carbon_intensity} gCO₂/kWh`
           : 'Loading grid data…'}
+        {grid?.cached && <span className="badge">Saved reading</span>}
       </p>
 
       {forecast && (
         <p className="grid-status">
-          Demo: replaying our model's forecast issued{' '}
-          {new Date(forecast.data_as_of).toLocaleString('en-GB', {
-            weekday: 'short', day: 'numeric', month: 'short',
-            hour: '2-digit', minute: '2-digit', timeZone: 'Europe/London',
-          })}
+          {forecastStatus(forecast)}
+          {forecast.cached && !forecast.historical_demo && <span className="badge">Cached data</span>}
         </p>
       )}
       <div className="segmented small tabs">
@@ -286,21 +305,25 @@ function App() {
           </div>
 
           {forecast ? (
-            <ForecastChart
-              slots={forecast.slots}
-              metric={metric}
-              unit={chart.unit}
-              title={chart.title}
-              rec={rec}
-              confirmedUntil={confirmedUntil}
-            />
+            <Suspense fallback={<p className="placeholder">Loading chart…</p>}>
+              <ForecastChart
+                slots={forecast.slots}
+                metric={metric}
+                unit={chart.unit}
+                title={chart.title}
+                rec={rec}
+                confirmedUntil={confirmedUntil}
+              />
+            </Suspense>
           ) : (
             <p className="placeholder">Loading forecast…</p>
           )}
         </div>
       </div>
-      {view === 'receipts' && <Receipts />}
-      {view === 'savings' && <Savings />}
+      <Suspense fallback={<p className="placeholder">Loading…</p>}>
+        {view === 'receipts' && <Receipts />}
+        {view === 'savings' && <Savings />}
+      </Suspense>
     </main>
   )
 }

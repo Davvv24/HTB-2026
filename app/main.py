@@ -250,6 +250,8 @@ except Exception as error:
 
 
 app = FastAPI()
+# Keep live data warm in the background so requests never wait on a provider (Step 11).
+app.router.add_event_handler("startup", live.start_background_refresh)
 
 @app.get("/api/households")
 def households():

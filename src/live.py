@@ -29,6 +29,7 @@ import json
 import os
 import tempfile
 import threading
+import time as time_module
 from dataclasses import dataclass, replace
 from datetime import datetime, time, timedelta
 from pathlib import Path
@@ -100,20 +101,80 @@ class ForecastSnapshot:
 
 _lock = threading.Lock()
 _memory = {}
+_refreshing = set()
+_serving = False  # True once the server's refresh loop runs: requests never wait then
+
+
+def _store(key, now, build):
+    value = build(now)
+    with _lock:
+        _memory[key] = (now, value)
+    return value
+
+
+def _refresh_later(key, now, build):
+    """Rebuild `key` in a background thread unless that is already happening."""
+    with _lock:
+        if key in _refreshing:
+            return
+        _refreshing.add(key)
+
+    def run():
+        try:
+            _store(key, now, build)
+        except Exception as exc:
+            print(f"Background refresh of {key} failed: {exc}")
+        finally:
+            with _lock:
+                _refreshing.discard(key)
+
+    threading.Thread(target=run, daemon=True, name=f"refresh-{key}").start()
 
 
 def _remember(key, ttl, now, build):
-    """Return the value built within `ttl`, or build a new one."""
+    """Return the value built within `ttl`, or build a new one.
+
+    In the server, a stale value is returned straight away while a background
+    thread fetches a new one, so a request never waits on a provider. A
+    request only waits when there is nothing at all to show yet.
+    """
     with _lock:
         hit = _memory.get(key)
     if hit is not None:
         built_at, value = hit
         if now - built_at < (ttl if value is not None else FAILURE_TTL):
             return value
-    value = build(now)
+        if _serving and value is not None:
+            _refresh_later(key, now, build)
+            return value
+    return _store(key, now, build)
+
+
+def start_background_refresh(every=timedelta(minutes=5)):
+    """Keep the forecast and grid warm. Called once when the API server starts.
+
+    Each pass refreshes published prices and the grid, and starts the daily
+    model build as soon as a new 15:00 cutoff passes.
+    """
+    global _serving
+    if not live_enabled():
+        return
     with _lock:
-        _memory[key] = (now, value)
-    return value
+        if _serving:
+            return
+        _serving = True
+
+    def loop():
+        while True:
+            now = _utc_now()
+            for key, build in (("forecast", _refresh_forecast), ("grid", _refresh_grid)):
+                try:
+                    _store(key, now, build)
+                except Exception as exc:
+                    print(f"Live refresh of {key} failed: {exc}")
+            time_module.sleep(every.total_seconds())
+
+    threading.Thread(target=loop, daemon=True, name="live-refresh").start()
 
 
 def clear_memory():

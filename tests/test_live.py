@@ -118,6 +118,23 @@ class ForecastTests(LiveTestCase):
             live.current_forecast(NOW + pd.Timedelta(minutes=2))
             self.assertEqual(fetch_agile.call_count, 2)
 
+    def test_server_serves_stale_data_while_refreshing_in_the_background(self):
+        agile, carbon = self.published()
+        with agile as fetch_agile, carbon:
+            first = live.current_forecast(NOW)
+            with mock.patch.object(live, "_serving", True), \
+                    mock.patch.object(live, "_refresh_later") as refresh_later:
+                stale = live.current_forecast(NOW + pd.Timedelta(minutes=11))
+            self.assertEqual(fetch_agile.call_count, 1)  # The request did not wait for a fetch
+        refresh_later.assert_called_once()
+        self.assertEqual(stale.last_updated, first.last_updated)
+
+    def test_background_refresh_does_not_start_when_live_data_is_off(self):
+        with mock.patch.dict(os.environ, {"GRID_ADVISOR_LIVE": "0"}), \
+                mock.patch.object(live.threading, "Thread") as thread:
+            live.start_background_refresh()
+        thread.assert_not_called()
+
     def test_can_be_switched_off(self):
         agile, carbon = self.published()
         with mock.patch.dict(os.environ, {"GRID_ADVISOR_LIVE": "0"}), agile as fetch_agile, carbon:

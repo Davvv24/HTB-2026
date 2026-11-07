@@ -67,65 +67,77 @@ function App() {
   }
 
   return (
-    <main>
+    <main className="app">
       <h1>When should I run it?</h1>
 
-      <p>
+      <p className="grid-status">
         {grid
           ? `Grid carbon intensity now: ${grid.carbon_intensity} gCO₂/kWh`
           : 'Loading grid data…'}
       </p>
 
-      <label>
-        Appliance:
-        <select value={appliance} onChange={(e) => setAppliance(e.target.value)}>
-          <option value="washing_machine">Washing machine</option>
-          <option value="dishwasher">Dishwasher</option>
-          <option value="tumble_dryer">Tumble dryer</option>
-          <option value="ev">Electric car</option>
-          <option value="battery">Home battery</option>
-        </select>
-      </label>
+      <section className="controls">
+        <div className="row">
+          <label className="field">
+            Appliance
+            <select value={appliance} onChange={(e) => setAppliance(e.target.value)}>
+              <option value="washing_machine">Washing machine</option>
+              <option value="dishwasher">Dishwasher</option>
+              <option value="tumble_dryer">Tumble dryer</option>
+              <option value="ev">Electric car</option>
+              <option value="battery">Home battery</option>
+            </select>
+          </label>
 
-      <label>
-        Finish by:
-        <input type="time" value={finishBy} onChange={(e) => setFinishBy(e.target.value)} />
-      </label>
+          <label className="field">
+            Finish by
+            <input type="time" value={finishBy} onChange={(e) => setFinishBy(e.target.value)} />
+          </label>
+        </div>
 
-      <label>
-        Cheapest ↔ Greenest:
-        <input
-          type="range" min="0" max="100"
-          value={carbonWeight}
-          onChange={(e) => setCarbonWeight(Number(e.target.value))}
-        />
-      </label>
+        <label className="field">
+          What matters more?
+          <input
+            type="range" min="0" max="100"
+            value={carbonWeight}
+            onChange={(e) => setCarbonWeight(Number(e.target.value))}
+          />
+          <span className="slider-ends">
+            <span>Cheapest</span>
+            <span>Greenest</span>
+          </span>
+        </label>
 
-      <fieldset>
-        <legend>How sure do you want to be?</legend>
-        {RISK_OPTIONS.map((option) => (
-          <button
-            key={option.value}
-            type="button"
-            aria-pressed={riskAversion === option.value}
-            onClick={() => setRiskAversion(option.value)}
-          >
-            {option.label}
-          </button>
-        ))}
-        <p>{selectedRisk.hint}</p>
-      </fieldset>
+        <fieldset className="field">
+          <legend>How sure do you want to be?</legend>
+          <div className="segmented">
+            {RISK_OPTIONS.map((option) => (
+              <button
+                key={option.value}
+                type="button"
+                aria-pressed={riskAversion === option.value}
+                onClick={() => setRiskAversion(option.value)}
+              >
+                {option.label}
+              </button>
+            ))}
+          </div>
+          <p className="hint">{selectedRisk.hint}</p>
+        </fieldset>
 
-      <button onClick={getRecommendation}>Find the best time</button>
+        <button className="primary" onClick={getRecommendation}>
+          Find the best time
+        </button>
+      </section>
 
       {rec && (
-        <section>
+        <section className="rec-card">
           <h2>Run it at {ukTime(rec.start)}</h2>
           <p>
             Saves £{rec.saving_gbp.toFixed(2)} and {rec.saving_co2_kg} kg CO₂
             compared with running now.
           </p>
-          <p>Why: {rec.why}</p>
+          <p className="why">Why: {rec.why}</p>
         </section>
       )}
     </main>

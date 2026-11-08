@@ -93,5 +93,42 @@ class RollingCalibrationTests(unittest.TestCase):
         self.assertIs(offsets[0], self.fallback[0])
 
 
+class AdaptiveCalibrationTests(unittest.TestCase):
+    def test_future_labels_cannot_change_earlier_intervals(self):
+        rows = long_table(120, actual=50, ready_after_hours=3)
+        fixed = {0: (0., 0., 0)}
+        full, _ = calibration.calibrate_adaptive(rows, rows, fixed)
+        cutoff = rows.forecast_at_utc.iloc[80]
+        changed = rows.copy()
+        changed.loc[changed.label_ready_utc > cutoff, "actual"] = -1000
+        revised, _ = calibration.calibrate_adaptive(changed, changed, fixed)
+        cols = ["p10", "p50", "p90"]
+        pd.testing.assert_frame_equal(full.loc[:80, cols], revised.loc[:80, cols])
+        self.assertTrue((full.p10 <= full.p50).all())
+        self.assertTrue((full.p50 <= full.p90).all())
+        pd.testing.assert_series_equal(full.p50, rows.p50)
+
+    def test_feedback_is_delayed_and_counted_only_once(self):
+        rows = long_table(6, actual=50)
+        rows.loc[1:, "actual"] = np.nan
+        _, state = calibration.calibrate_adaptive(rows, rows, {0: (0., 0., 0)})
+        self.assertAlmostEqual(state.upper_tail.iloc[0], .1)
+        self.assertAlmostEqual(state.upper_tail.iloc[1], .1)
+        self.assertAlmostEqual(state.upper_tail.iloc[2], .1 + .005 * (.1 - 1))
+        self.assertEqual(state.upper_tail.iloc[2], state.upper_tail.iloc[-1])
+
+    def test_export_uses_final_matured_feedback_without_changing_replay(self):
+        rows = long_table(120, actual=10)
+        fixed = {0: (0., 0., 0)}
+        plain, _ = calibration.calibrate_adaptive(rows, rows, fixed)
+        cutoff = rows.label_ready_utc.max() + pd.Timedelta(seconds=1)
+        exported, states = calibration.calibrate_adaptive(rows, rows, fixed, final_cutoff=cutoff)
+        pd.testing.assert_frame_equal(plain, exported)
+        final = states.iloc[-1]
+        self.assertEqual(final.forecast_at_utc, cutoff)
+        self.assertEqual(final.n, 120)
+        self.assertEqual(final.upper, 9)
+
+
 if __name__ == "__main__":
     unittest.main()

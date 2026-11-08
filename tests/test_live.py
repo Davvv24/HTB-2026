@@ -135,6 +135,14 @@ class ForecastTests(LiveTestCase):
             live.start_background_refresh()
         thread.assert_not_called()
 
+    def test_cold_server_request_does_not_wait_for_providers(self):
+        with mock.patch.object(live, "_serving", True), \
+                mock.patch.object(live, "_refresh_later") as refresh, \
+                mock.patch.object(live, "_refresh_forecast") as build:
+            self.assertIsNone(live.current_forecast(NOW))
+        refresh.assert_called_once()
+        build.assert_not_called()
+
     def test_can_be_switched_off(self):
         agile, carbon = self.published()
         with mock.patch.dict(os.environ, {"GRID_ADVISOR_LIVE": "0"}), agile as fetch_agile, carbon:
@@ -223,16 +231,41 @@ class PredictTableTests(unittest.TestCase):
 
     def test_widens_each_band_by_its_horizon_offset(self):
         raw = live.models.predict_quantiles(live.models.load_models(live.MODEL_DIR, "price"), self.rows)
-        first = self.offsets["price"]["rolling_latest"]["0-12h"]
+        self.assertEqual(self.offsets["price"]["deployment_method"], "adaptive_latest")
+        self.assertEqual(self.offsets["carbon"]["deployment_method"], "rolling_latest")
+        first = self.offsets["price"]["adaptive_latest"]["0-12h"]
         expected_p90 = max(raw[0, 2] + first["upper"], raw[0, 1])
         self.assertAlmostEqual(self.table["price_p90"].iloc[0], expected_p90, places=6)
         self.assertAlmostEqual(self.table["price_p50"].iloc[0], raw[0, 1], places=6)
-        last = self.offsets["price"]["rolling_latest"]["36-48h"]
+        last = self.offsets["price"]["adaptive_latest"]["36-48h"]
         self.assertAlmostEqual(self.table["price_p10"].iloc[-1],
                                min(raw[-1, 0] - last["lower"], raw[-1, 1]), places=6)
 
 
 class ModelForecastTests(LiveTestCase):
+    def test_expired_model_does_not_hide_fresh_published_prices(self):
+        expired = model_snapshot(pd.Timestamp("2026-11-04 15:00", tz="UTC"))
+        agile, carbon = self.published()
+        with mock.patch.object(live, "model_snapshot", return_value=expired), agile, carbon:
+            snapshot = live.current_forecast(NOW)
+        self.assertEqual(snapshot.source, "published_only")
+        self.assertEqual(len(snapshot.table), 26)
+        self.assertTrue(snapshot.table.price_published.all())
+
+    def test_changed_calibration_invalidates_saved_served_model(self):
+        saved = model_snapshot(live.latest_cutoff(NOW))
+        live._save_forecast(saved)
+        with mock.patch.object(live, "calibration_fingerprint", return_value="changed"):
+            self.assertIsNone(live._saved_forecast())
+
+    def test_changed_calibration_invalidates_saved_raw_model(self):
+        saved = model_snapshot(live.latest_cutoff(NOW))
+        saved.table.to_parquet(live.LIVE_DIR / "model_forecast.parquet")
+        (live.LIVE_DIR / "model_meta.json").write_text(json.dumps({
+            "cutoff": live.iso(saved.data_as_of), "built_at": live.iso(NOW),
+            "calibration_sha256": "old"}))
+        self.assertIsNone(live._saved_model())
+
     def use_real_model_snapshot(self):
         self.no_model.stop()
         self.no_model_active = False
@@ -271,7 +304,8 @@ class ModelForecastTests(LiveTestCase):
             built.table.to_parquet(live.LIVE_DIR / "model_forecast.parquet")
             pd.DataFrame({"x": [1]}).to_parquet(live.LIVE_DIR / "model_features.parquet")
             (live.LIVE_DIR / "model_meta.json").write_text(json.dumps(
-                {"cutoff": live.iso(c), "built_at": live.iso(now)}))
+                {"cutoff": live.iso(c), "built_at": live.iso(now),
+                 "calibration_sha256": live.calibration_fingerprint()}))
             return built
 
         self.use_real_model_snapshot()

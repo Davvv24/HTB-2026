@@ -7,11 +7,12 @@ const SOURCES = [
 // Technical model terms that don't mean anything to a household user
 const HIDDEN = ['Model reference value', 'Non-negative carbon adjustment']
 
-export default function WhyPanel({ drivers }) {
-  if (!drivers) return null
+export default function WhyPanel({ drivers, why }) {
+  if (!drivers) return why ? <p>{why}</p> : null
 
   return (
     <div className="why-panel">
+      {why && <p>{why}</p>}
       <p className="hint">
         Compared with starting straight away, these parts of our forecast make your slot
         cheaper or greener:

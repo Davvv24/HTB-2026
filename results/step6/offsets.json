@@ -2,8 +2,32 @@
   "level": 0.8,
   "bucket_hours": 12,
   "window_days": 28,
+  "deployment_note": "Frozen offsets from historical outcomes; regenerate to update. Adaptive price results are exploratory and do not guarantee 80% live coverage.",
   "usage": "p10 -= lower, p90 += upper for the matching horizon bucket; keep p10 <= p50 <= p90.",
   "price": {
+    "deployment_method": "adaptive_latest",
+    "adaptive_latest": {
+      "0-12h": {
+        "lower": 0.3767,
+        "upper": 15.8032,
+        "n": 624
+      },
+      "12-24h": {
+        "lower": 4.5258,
+        "upper": 9.9429,
+        "n": 624
+      },
+      "24-36h": {
+        "lower": -1.8754,
+        "upper": 19.4783,
+        "n": 624
+      },
+      "36-48h": {
+        "lower": -2.7385,
+        "upper": 17.1951,
+        "n": 624
+      }
+    },
     "rolling_latest": {
       "0-12h": {
         "lower": 3.3601,
@@ -51,6 +75,29 @@
     "as_of_utc": "2026-11-05 15:00:00+00:00"
   },
   "carbon": {
+    "deployment_method": "rolling_latest",
+    "adaptive_latest": {
+      "0-12h": {
+        "lower": -13.6814,
+        "upper": 8.1035,
+        "n": 624
+      },
+      "12-24h": {
+        "lower": -7.9233,
+        "upper": 18.6137,
+        "n": 624
+      },
+      "24-36h": {
+        "lower": -16.6407,
+        "upper": 11.0781,
+        "n": 624
+      },
+      "36-48h": {
+        "lower": -10.674,
+        "upper": 12.1514,
+        "n": 624
+      }
+    },
     "rolling_latest": {
       "0-12h": {
         "lower": -3.5673,

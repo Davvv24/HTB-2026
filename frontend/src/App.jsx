@@ -330,7 +330,7 @@ function App() {
               </div>
               <details className="why">
                 <summary>Why this time?</summary>
-                <WhyPanel drivers={rec.model_drivers} />
+                <WhyPanel drivers={rec.model_drivers} why={rec.why} />
                 {rec.interpretation && <p className="hint">{rec.interpretation}</p>}
               </details>
             </section>

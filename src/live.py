@@ -151,11 +151,33 @@ def _remember(key, ttl, now, build):
     return _store(key, now, build)
 
 
-def start_background_refresh(every=timedelta(minutes=5)):
-    """Keep the forecast and grid warm. Called once when the API server starts.
+STARTUP_WAIT = timedelta(seconds=8)  # Longest the server waits for live data before opening
 
-    Each pass refreshes published prices and the grid, and starts the daily
-    model build as soon as a new 15:00 cutoff passes.
+
+def _refresh_all():
+    now = _utc_now()
+    for key, build in (("forecast", _refresh_forecast), ("grid", _refresh_grid)):
+        try:
+            _store(key, now, build)
+        except Exception as exc:
+            print(f"Live refresh of {key} failed: {exc}")
+
+
+def _refresh_loop(every):
+    while True:
+        time_module.sleep(every.total_seconds())
+        _refresh_all()
+
+
+def start_background_refresh(every=timedelta(minutes=5), startup_wait=STARTUP_WAIT):
+    """Load live data, then keep it warm. Called once when the API server starts.
+
+    The first load happens before the server accepts requests, so the first
+    visitor sees today's data rather than the historical replay. It waits at
+    most `startup_wait` (providers can be slow or offline); after that the
+    server opens anyway and the load finishes in the background. Each later
+    pass refreshes published prices and the grid, and starts the daily model
+    build as soon as a new 15:00 cutoff passes.
     """
     global _serving
     if not live_enabled():
@@ -163,19 +185,15 @@ def start_background_refresh(every=timedelta(minutes=5)):
     with _lock:
         if _serving:
             return
+    first_load = threading.Thread(target=_refresh_all, daemon=True, name="live-first-load")
+    first_load.start()
+    first_load.join(startup_wait.total_seconds())
+    if first_load.is_alive():
+        print(f"Live data still loading after {startup_wait.total_seconds():g}s; "
+              "serving the saved or historical forecast until it arrives.")
+    with _lock:
         _serving = True
-
-    def loop():
-        while True:
-            now = _utc_now()
-            for key, build in (("forecast", _refresh_forecast), ("grid", _refresh_grid)):
-                try:
-                    _store(key, now, build)
-                except Exception as exc:
-                    print(f"Live refresh of {key} failed: {exc}")
-            time_module.sleep(every.total_seconds())
-
-    threading.Thread(target=loop, daemon=True, name="live-refresh").start()
+    threading.Thread(target=_refresh_loop, args=(every,), daemon=True, name="live-refresh").start()
 
 
 def clear_memory():

@@ -4,7 +4,26 @@ Grid Advisor is a HackTheBurgh 2026 project that will help households choose whe
 
 See [current model assumptions](docs/MODEL_ASSUMPTIONS.md) for data timing, calibration, scheduling, live fallbacks and the distinction between simulated receipts and live predictions.
 
-## Windows quick start (PowerShell)
+## Quick start
+
+You need **Python 3.11+**. **Node.js 20+** is only needed the first time, to build the web app.
+
+```bash
+./start.sh                 # macOS / Linux
+```
+
+```powershell
+.\start.ps1                # Windows (if blocked: powershell -ExecutionPolicy Bypass -File .\start.ps1)
+```
+
+The script sets everything up on first run (a few minutes), then opens **http://localhost:8000**. Later runs start in seconds. Press Ctrl+C to stop.
+
+- **Live data:** the app uses today's Octopus Agile prices, the National Grid carbon forecast and our model's 48-hour forecast. If a provider is unreachable, it falls back to the last saved data, then to a historical replay, and says so in the app.
+- **No internet or weak Wi-Fi?** Run `./start.sh --offline` (or `.\start.ps1 -Offline`) to use saved data only.
+- **Other options:** `--no-browser`, and `PORT=9000 ./start.sh` (`-Port 9000`) for another port.
+- **Linux:** LightGBM may need `sudo apt install libgomp1`.
+
+## Windows manual setup (PowerShell)
 
 From the repository root, use native Python 3.12 and Node.js 22.12+:
 
@@ -178,7 +197,9 @@ The bundled samples are for checking API shape and offline behaviour. Historical
 
 Weather data from [Open-Meteo](https://open-meteo.com/) under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/), reshaped to one CSV row per site and hour. Other samples come from the public Octopus Energy, NESO and Elexon Insights APIs linked above.
 
-## Running the app
+## Development setup (two terminals)
+
+For working on the code: the backend reloads on Python changes and Vite hot-reloads the web app. To just run the app, use the [Quick start](#quick-start) instead.
 
 ### Requirements
 - Python 3.11+ and Node.js 20+
@@ -208,8 +229,12 @@ npm run dev
 Open http://localhost:5173
 
 The front end forwards `/api` requests to the back end, so both must be running.
+After `npm run build`, the backend alone also serves the built app at http://localhost:8000.
 
 ### Note on data
-The app currently replays the latest saved model forecast from `results/step8/`
-(a historical demo, labelled in the app). Live data is Step 11.
+The app runs on live data by default (`src/live.py`): Octopus's published Agile prices, the
+NESO grid mix and carbon forecast, and our model's forecast from the latest 15:00 UK cutoff.
+It loads live data before accepting requests (waiting up to 8 seconds), then refreshes every
+5 minutes. If providers fail, it serves the last saved copy, then the historical replay from
+`results/step8/`, and labels which one is shown. Set `GRID_ADVISOR_LIVE=0` to use the replay only.
 

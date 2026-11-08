@@ -9,12 +9,15 @@ conformal 90% quantile of (p10 - actual) and the upper offset that of
 (actual - p90). Calibrated p10 = p10 - lower, p90 = p90 + upper. p50 is
 unchanged.
 
-Two versions are reported on the Step 5 test period:
+Three versions are reported on the Step 5 test period:
   fixed    offsets from Step 5's validation window (split conformal)
   rolling  for each daily cutoff, offsets from the last 28 days of outcomes
            already published by that cutoff (the primary method, chosen
            before seeing test results because validation coverage was
            already low, which signals drift)
+  adaptive delayed-feedback tail budgets on the same rolling score window.
+           This revision was evaluated after inspecting the holdout; its
+           reported improvement is exploratory, not a fresh validation.
 
 Run:  python -m src.calibration
 """
@@ -35,6 +38,7 @@ TAIL = (1 - LEVEL) / 2  # 10% allowed below p10 and above p90
 BUCKET_HOURS = 12
 WINDOW_DAYS = 28
 MIN_SCORES = 100  # Below this, rolling falls back to the fixed offsets
+ADAPTIVE_RATE = 0.005  # Per newly observed forecast error; exploratory revision.
 FLOORS = {"price": None, "carbon": 0.0}  # Carbon intensity cannot be negative
 
 
@@ -117,6 +121,57 @@ def calibrate_rolling(pool, rows, fallback, floor=None, window_days=WINDOW_DAYS)
         fallbacks += sum(offsets[b] is fallback[b] for b in offsets)
         parts.append(apply_offsets(group, offsets, floor))
     return pd.concat(parts).loc[rows.index], fallbacks
+
+
+def calibrate_adaptive(pool, rows, fallback, floor=None, window_days=WINDOW_DAYS,
+                       final_cutoff=None):
+    """Delayed-feedback tail calibration, inspired by adaptive conformal inference.
+
+    Each tail's error budget starts at 0.1. Newly available past forecast
+    outcomes update it by 0.005 * (target misses - observed misses). Each
+    outcome is processed once. Budgets are clipped to [0.005, 0.3] for finite
+    operational intervals; this modification provides no exact coverage guarantee.
+    """
+    if not rows.index.is_unique:
+        raise ValueError("Adaptive calibration requires unique forecast-row indices.")
+    if rows.empty:
+        raise ValueError("Adaptive calibration requires forecast rows.")
+    if final_cutoff is not None and final_cutoff <= rows.forecast_at_utc.max():
+        raise ValueError("Export cutoff must follow all forecast cutoffs.")
+    budgets = {bucket: np.array([TAIL, TAIL]) for bucket in fallback}
+    emitted, processed, states = [], set(), []
+    groups = list(rows.groupby("forecast_at_utc", sort=True))
+    if final_cutoff is not None:
+        groups.append((final_cutoff, rows.iloc[:0]))
+    for cutoff, group in groups:
+        if emitted:
+            previous = pd.concat(emitted)
+            ready = previous[(previous.label_ready_utc <= cutoff)
+                             & ~previous.index.isin(processed) & np.isfinite(previous.actual)]
+            for bucket, settled in ready.groupby("bucket"):
+                misses = np.array([(settled.actual < settled.p10).sum(),
+                                   (settled.actual > settled.p90).sum()])
+                budgets[bucket] = np.clip(budgets[bucket] + ADAPTIVE_RATE *
+                                          (len(settled) * TAIL - misses), 0.005, 0.3)
+            processed.update(ready.index)
+        known = pool[(pool.label_ready_utc <= cutoff) & (pool.forecast_at_utc < cutoff)
+                     & (pool.forecast_at_utc >= cutoff - pd.Timedelta(days=window_days))
+                     & np.isfinite(pool.actual)]
+        offsets = {}
+        for bucket, tail in budgets.items():
+            samples = known[known.bucket == bucket]
+            offsets[bucket] = fallback[bucket]
+            if len(samples) >= MIN_SCORES:
+                offsets[bucket] = (
+                    conformal_quantile(samples.p10 - samples.actual, tail[0]),
+                    conformal_quantile(samples.actual - samples.p90, tail[1]), len(samples))
+            states.append({"forecast_at_utc": cutoff, "bucket": bucket,
+                           "lower_tail": tail[0], "upper_tail": tail[1],
+                           "lower": offsets[bucket][0], "upper": offsets[bucket][1],
+                           "n": offsets[bucket][2]})
+        if not group.empty:
+            emitted.append(apply_offsets(group, offsets, floor))
+    return pd.concat(emitted).loc[rows.index], pd.DataFrame(states)
 
 
 def coverage(rows):
@@ -225,6 +280,11 @@ def run(features, *, model_dir=Path("results/step5"), out_dir=Path("results/step
             "fixed": apply_offsets(test, fixed, floor),
         }
         versions["rolling"], fallbacks = calibrate_rolling(table, test, fixed, floor, window_days)
+        as_of = table["label_ready_utc"].max()
+        export_cutoff = as_of + pd.Timedelta(seconds=1)
+        versions["adaptive"], states = calibrate_adaptive(
+            table, test, fixed, floor, window_days, final_cutoff=export_cutoff)
+        states.to_csv(out_dir / f"{source}_adaptive_state.csv", index=False)
         print(f"{source}: rolling used the fixed fallback in {fallbacks} of "
               f"{test['forecast_at_utc'].nunique() * len(fixed)} cutoff-buckets.")
 
@@ -246,9 +306,12 @@ def run(features, *, model_dir=Path("results/step5"), out_dir=Path("results/step
             wide = wide.join(block)
 
         # Latest rolling offsets, for widening live forecasts in the app.
-        as_of = table["label_ready_utc"].max()
         latest = rolling_offsets(table, as_of + pd.Timedelta(seconds=1), fixed, window_days)
+        adaptive_latest = states[states.forecast_at_utc == export_cutoff]
         saved_offsets[source] = {
+            "deployment_method": "adaptive_latest" if source == "price" else "rolling_latest",
+            "adaptive_latest": {bucket_label(int(row.bucket)): _offset_dict((row.lower, row.upper, row.n))
+                                for row in adaptive_latest.itertuples()},
             "rolling_latest": {bucket_label(b): _offset_dict(v) for b, v in latest.items()},
             "fixed_validation": {bucket_label(b): _offset_dict(v) for b, v in fixed.items()},
             "as_of_utc": str(as_of),
@@ -261,6 +324,7 @@ def run(features, *, model_dir=Path("results/step5"), out_dir=Path("results/step
         "level": LEVEL,
         "bucket_hours": BUCKET_HOURS,
         "window_days": window_days,
+        "deployment_note": "Frozen offsets from historical outcomes; regenerate to update. Adaptive price results are exploratory and do not guarantee 80% live coverage.",
         "usage": "p10 -= lower, p90 += upper for the matching horizon bucket; keep p10 <= p50 <= p90.",
         **saved_offsets,
     }, indent=2) + "\n")
@@ -284,18 +348,19 @@ def plot(report, path):
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
 
-    colours = {"raw": "#9aa0a6", "fixed": "#e8a33d", "rolling": "#2e7d5b"}
-    names = {"raw": "Step 5 raw", "fixed": "Fixed (validation window)", "rolling": f"Rolling ({WINDOW_DAYS} days)"}
+    colours = {"raw": "#9aa0a6", "fixed": "#e8a33d", "rolling": "#2e7d5b", "adaptive": "#4466cc"}
+    names = {"raw": "Step 5 raw", "fixed": "Fixed (validation window)", "rolling": f"Rolling ({WINDOW_DAYS} days)",
+             "adaptive": "Adaptive delayed feedback"}
     fig, axes = plt.subplots(2, 2, figsize=(12, 8.5))
     for column, source in enumerate(models.TARGETS):
         part = report[report["target"] == source]
         by_horizon = part[part["horizon"] != "all"]
         horizons = list(dict.fromkeys(by_horizon["horizon"]))
         ax = axes[0, column]
-        width = 0.26
+        width = 0.2
         for i, method in enumerate(colours):
             values = by_horizon[by_horizon["method"] == method].set_index("horizon").loc[horizons]
-            ax.bar(np.arange(len(horizons)) + (i - 1) * width, values["coverage_80_pct"],
+            ax.bar(np.arange(len(horizons)) + (i - 1.5) * width, values["coverage_80_pct"],
                    width, color=colours[method], label=names[method])
         ax.axhline(80, color="#333", linestyle="--", linewidth=1, label="Target 80%")
         ax.set_xticks(np.arange(len(horizons)), horizons)

@@ -2,6 +2,28 @@
 
 Grid Advisor is a HackTheBurgh 2026 project that will help households choose when to run appliances by showing the trade-off between electricity cost, carbon and convenience. The first region is Edinburgh and South Scotland.
 
+See [current model assumptions](docs/MODEL_ASSUMPTIONS.md) for data timing, calibration, scheduling, live fallbacks and the distinction between simulated receipts and live predictions.
+
+## Windows quick start (PowerShell)
+
+From the repository root, use native Python 3.12 and Node.js 22.12+:
+
+```powershell
+py -3.12 -m venv .venv-win
+.\.venv-win\Scripts\python.exe -m pip install -r requirements.txt
+.\.venv-win\Scripts\python.exe -m uvicorn app.main:app --reload --port 8000
+```
+
+In a second PowerShell terminal:
+
+```powershell
+cd frontend
+npm.cmd ci
+npm.cmd run dev
+```
+
+Open http://localhost:5173 and keep both terminals running. Directly invoking the virtual environment avoids activation-policy changes; `npm.cmd` avoids PowerShell's `npm.ps1` policy. Use a separate Windows environment from WSL. To run offline, set `$env:GRID_ADVISOR_LIVE='0'` before starting the backend. Restart the backend after updating calibration artifacts.
+
 ## Run Step 9
 
 Generate historical recommendation explanations and model feature contributions.

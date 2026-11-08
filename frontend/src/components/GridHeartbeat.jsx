@@ -17,11 +17,12 @@ const label = (key) => SOURCES[key]?.label ?? key
 export default function GridHeartbeat({ grid }) {
   if (!grid) return <p className="grid-status">Loading grid data…</p>
 
-  const parts = Object.entries(grid.mix_percent)
-    .filter(([, pct]) => pct > 0)
+  const mix = grid.mix_percent ?? {}
+  const parts = Object.entries(mix)
+    .filter(([, pct]) => Number.isFinite(pct) && pct > 0)
     .sort((a, b) => b[1] - a[1])
-  const [topKey, topPct] = parts[0]
-  const lowCarbon = LOW_CARBON.reduce((sum, key) => sum + (grid.mix_percent[key] ?? 0), 0)
+  const [topKey, topPct] = parts[0] ?? []
+  const lowCarbon = LOW_CARBON.reduce((sum, key) => sum + (mix[key] ?? 0), 0)
   const time = new Date(grid.data_as_of).toLocaleTimeString('en-GB', {
     weekday: 'short', hour: '2-digit', minute: '2-digit', timeZone: 'Europe/London',
   })
@@ -32,8 +33,11 @@ export default function GridHeartbeat({ grid }) {
         {grid.source === 'live' && <span className="pulse" aria-hidden="true" />}
         <strong>{grid.carbon_intensity} gCO₂/kWh</strong>
         <span className="hint">
-          GB grid at {time} · {Math.round(lowCarbon)}% low-carbon · mostly{' '}
-          {label(topKey).toLowerCase()} ({Math.round(topPct)}%)
+          GB grid at {time}
+          {parts.length > 0
+            ? ` · ${Math.round(lowCarbon)}% low-carbon · mostly ${label(topKey).toLowerCase()} (${Math.round(topPct)}%)`
+            : ' · Generation mix unavailable'}
+          {grid.historical_demo ? ' · Historical replay' : grid.cached ? ' · Cached reading' : ''}
         </span>
       </div>
 

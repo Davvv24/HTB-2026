@@ -25,6 +25,7 @@ Set GRID_ADVISOR_LIVE=0 to switch live data off, for example for an offline demo
 
 import argparse
 import contextlib
+import hashlib
 import json
 import os
 import tempfile
@@ -144,9 +145,9 @@ def _remember(key, ttl, now, build):
         built_at, value = hit
         if now - built_at < (ttl if value is not None else FAILURE_TTL):
             return value
-        if _serving and value is not None:
-            _refresh_later(key, now, build)
-            return value
+    if _serving:
+        _refresh_later(key, now, build)
+        return hit[1] if hit is not None else None
     return _store(key, now, build)
 
 
@@ -230,7 +231,8 @@ def predict_table(feature_rows, model_dir=MODEL_DIR, offsets_path=OFFSETS_PATH):
         predicted = models.predict_quantiles(
             models.load_models(model_dir, source), feature_rows, carbon=(source == "carbon")
         )
-        latest = offsets[source]["rolling_latest"]
+        method = offsets[source].get("deployment_method", "rolling_latest")
+        latest = offsets[source][method]
         lower = np.array([latest[label]["lower"] for label in labels])
         upper = np.array([latest[label]["upper"] for label in labels])
         p10 = np.minimum(predicted[:, 0] - lower, predicted[:, 1])
@@ -240,6 +242,11 @@ def predict_table(feature_rows, model_dir=MODEL_DIR, offsets_path=OFFSETS_PATH):
         table[f"{source}_p10"], table[f"{source}_p50"], table[f"{source}_p90"] = p10, predicted[:, 1], p90
     table["price_published"] = False
     return optimiser.validate_forecast(table)
+
+
+def calibration_fingerprint():
+    """Invalidate saved model bands when the deployed calibration changes."""
+    return hashlib.sha256(OFFSETS_PATH.read_bytes()).hexdigest()
 
 
 def build_model_forecast(cutoff, now):
@@ -256,7 +263,8 @@ def build_model_forecast(cutoff, now):
     table.to_parquet(LIVE_DIR / "model_forecast.parquet")
     rows.to_parquet(LIVE_DIR / "model_features.parquet", index=False)
     (LIVE_DIR / "model_meta.json").write_text(json.dumps(
-        {"cutoff": iso(cutoff), "built_at": iso(now)}, indent=2) + "\n")
+        {"cutoff": iso(cutoff), "built_at": iso(now),
+         "calibration_sha256": calibration_fingerprint()}, indent=2) + "\n")
     return ForecastSnapshot(table, data_as_of=cutoff, last_updated=now, source="model",
                             contributions=contributions)
 
@@ -265,6 +273,8 @@ def _saved_model():
     """The last saved model forecast, or None."""
     try:
         meta = json.loads((LIVE_DIR / "model_meta.json").read_text())
+        if meta.get("calibration_sha256") != calibration_fingerprint():
+            return None
         table = pd.read_parquet(LIVE_DIR / "model_forecast.parquet")
         table.index = pd.DatetimeIndex(pd.to_datetime(table.index, utc=True), name="time_utc")
     except (OSError, ValueError, KeyError):
@@ -361,6 +371,8 @@ def _save_forecast(snapshot):
     snapshot.table.to_parquet(LIVE_DIR / "forecast.parquet")
     meta = {"data_as_of": iso(snapshot.data_as_of), "last_updated": iso(snapshot.last_updated),
             "source": snapshot.source}
+    if snapshot.source == "model":
+        meta["calibration_sha256"] = calibration_fingerprint()
     (LIVE_DIR / "forecast_meta.json").write_text(json.dumps(meta, indent=2) + "\n")
 
 
@@ -369,6 +381,9 @@ def _saved_forecast():
     try:
         table = pd.read_parquet(LIVE_DIR / "forecast.parquet")
         meta = json.loads((LIVE_DIR / "forecast_meta.json").read_text())
+        if (meta["source"] == "model"
+                and meta.get("calibration_sha256") != calibration_fingerprint()):
+            return None
         table.index = pd.DatetimeIndex(pd.to_datetime(table.index, utc=True), name="time_utc")
         return ForecastSnapshot(
             table, data_as_of=pd.Timestamp(meta["data_as_of"]),
@@ -381,7 +396,9 @@ def _saved_forecast():
 
 def _refresh_forecast(now, background=True):
     """Model forecast with published prices on top, else published only, else saved."""
-    model = model_snapshot(latest_cutoff(now), now, background)
+    # Reject exhausted saved models before choosing a source, so they cannot
+    # mask usable published prices while a new model is being built.
+    model = _from_now(model_snapshot(latest_cutoff(now), now, background), now)
     try:
         agile, carbon = _published_rows(now)
     except FETCH_ERRORS as exc:

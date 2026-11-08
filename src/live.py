@@ -237,11 +237,32 @@ def predict_table(feature_rows, model_dir=MODEL_DIR, offsets_path=OFFSETS_PATH):
         upper = np.array([latest[label]["upper"] for label in labels])
         p10 = np.minimum(predicted[:, 0] - lower, predicted[:, 1])
         p90 = np.maximum(predicted[:, 2] + upper, predicted[:, 1])
+        # Step 6 may also correct a biased median: shift p50, kept inside the band.
+        shifts = offsets[source].get("median_shift", {})
+        p50 = np.clip(predicted[:, 1] + np.array([shifts.get(label, 0.0) for label in labels]), p10, p90)
         if source == "carbon":
-            p10 = np.maximum(p10, 0)
-        table[f"{source}_p10"], table[f"{source}_p50"], table[f"{source}_p90"] = p10, predicted[:, 1], p90
+            p10, p50, p90 = (np.maximum(q, 0) for q in (p10, p50, p90))
+        table[f"{source}_p10"], table[f"{source}_p50"], table[f"{source}_p90"] = p10, p50, p90
     table["price_published"] = False
     return optimiser.validate_forecast(table)
+
+
+def reconcile_contributions(contributions, table):
+    """Record Step 6's median shift as a "calibration_shift" factor.
+
+    Model contributions add up to the raw model median. When the served p50 has
+    been shifted, the difference is added as its own column so explanations still
+    add up to the served forecast and show the adjustment separately.
+    """
+    adjusted = {}
+    for source, frame in contributions.items():
+        served = table[f"{source}_p50"].reindex(frame.index)
+        shift = (served - frame["prediction"]).fillna(0.0)
+        if (shift.abs() > 1e-9).any():
+            frame = frame.drop(columns="prediction").assign(
+                calibration_shift=shift, prediction=frame["prediction"] + shift)
+        adjusted[source] = frame
+    return adjusted
 
 
 def calibration_fingerprint():
@@ -255,7 +276,7 @@ def build_model_forecast(cutoff, now):
         rows = live_features(cutoff, cache_dir)
     table = predict_table(rows)
     try:
-        contributions = explain.model_explanations(rows, MODEL_DIR)
+        contributions = reconcile_contributions(explain.model_explanations(rows, MODEL_DIR), table)
     except Exception as exc:  # The forecast is still useful without detailed reasons
         print(f"Live explanations unavailable: {exc}")
         contributions = None
@@ -280,8 +301,8 @@ def _saved_model():
     except (OSError, ValueError, KeyError):
         return None
     try:
-        contributions = explain.model_explanations(
-            pd.read_parquet(LIVE_DIR / "model_features.parquet"), MODEL_DIR)
+        contributions = reconcile_contributions(explain.model_explanations(
+            pd.read_parquet(LIVE_DIR / "model_features.parquet"), MODEL_DIR), table)
     except Exception:
         contributions = None
     cutoff = pd.Timestamp(meta["cutoff"])

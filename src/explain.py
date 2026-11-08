@@ -36,10 +36,20 @@ def explain_battery(plan):
             f"after degradation and {carbon} in emissions compared with the same load without a battery.")
 
 
+TECHNICAL_GROUPS = ("Model reference value", "Non-negative carbon adjustment", "Calibration adjustment")
+
+
+def _readable(drivers):
+    """Drivers a household can relate to, without the model's technical terms."""
+    return [d for d in drivers if d["factor"] not in TECHNICAL_GROUPS]
+
+
 def feature_group(name):
     """Readable groups keep correlated weather inputs together in the UI."""
     if name == "bias":
         return "Model reference value"
+    if name == "calibration_shift":
+        return "Calibration adjustment"
     if name == "postprocess":
         return "Non-negative carbon adjustment"
     if name.startswith("price_"):
@@ -129,9 +139,16 @@ def explain_recommendation(plan, forecast, contributions):
             plan.co2_kg, plan.run_now_co2_kg)
         if not np.allclose([chosen_value, baseline_value], expected, rtol=1e-6, atol=1e-6):
             raise ValueError("The plan totals do not match the supplied forecast.")
-        if source == "price" and forecast.loc[needed, "price_published"].any():
-            details[source] = {"status": "published_prices", "drivers": []}
-            continue
+        if source == "price":
+            # Model factors cannot explain a confirmed price. Say "published" only when
+            # the recommended slots are all confirmed; if just the run-now comparison
+            # (or part of the plan) is confirmed, say the comparison is mixed.
+            if forecast.loc[slots, "price_published"].all():
+                details[source] = {"status": "published_prices", "drivers": []}
+                continue
+            if forecast.loc[needed, "price_published"].any():
+                details[source] = {"status": "partly_published", "drivers": []}
+                continue
         table = contributions[source]
         if not needed.isin(table.index).all():
             raise ValueError("Missing contributions for scheduled or baseline slots.")
@@ -151,12 +168,19 @@ def explain_recommendation(plan, forecast, contributions):
                         for name, value in grouped.items()],
         }
     why = explain_plan(plan)
-    price_drivers = details["price"]["drivers"]
+    price_drivers = _readable(details["price"]["drivers"])
+    carbon_drivers = _readable(details["carbon"]["drivers"])
     if price_drivers and abs(price_drivers[0]["contribution"]) >= 0.005:
         driver = price_drivers[0]
         direction = "higher" if driver["contribution"] > 0 else "lower"
         why = (why[:-1] + f", with {driver['factor'].lower()} contributing "
                f"{abs(driver['contribution']):.2f} GBP {direction} to the model's cost comparison.")
+    elif carbon_drivers and abs(carbon_drivers[0]["contribution"]) >= 0.0005:
+        # No model reason for price (e.g. confirmed prices), so name the main carbon factor.
+        driver = carbon_drivers[0]
+        direction = "higher" if driver["contribution"] > 0 else "lower"
+        why = (why[:-1] + f", with {driver['factor'].lower()} contributing "
+               f"{abs(driver['contribution']):.3f} kg CO2 {direction} to the model's carbon comparison.")
     return {
         "why": why, "model_drivers": details,
         "interpretation": "Signed contributions explain the model's median difference between schedules. "

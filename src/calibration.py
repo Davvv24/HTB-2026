@@ -123,6 +123,91 @@ def calibrate_rolling(pool, rows, fallback, floor=None, window_days=WINDOW_DAYS)
     return pd.concat(parts).loc[rows.index], fallbacks
 
 
+# --- Bias-corrected version ------------------------------------------------------
+#
+# The price model's median runs low when prices shift (in the test period only
+# about a quarter of outcomes fall below p50). Widening the tails alone covers
+# that with very wide, lopsided bands, and the optimiser's risk penalty then
+# rules out every forecast slot. This version first shifts p10/p50/p90 by the
+# median recent error, then measures the tails around the shifted forecast.
+# Offsets are (shift, lower, upper, n).
+
+
+def _bias_offsets(rows):
+    """Median error, then the tail widening needed around the shifted bands."""
+    rows = rows[np.isfinite(rows["actual"])]
+    shift = float(np.median(rows["actual"] - rows["p50"]))
+    shifted = rows.assign(p10=rows["p10"] + shift, p50=rows["p50"] + shift, p90=rows["p90"] + shift)
+    lower, upper, n = _offsets(shifted)
+    return shift, lower, upper, n
+
+
+def fixed_bias_offsets(calibration_rows):
+    """{bucket: (shift, lower, upper, n)} from one calibration window."""
+    return {int(bucket): _bias_offsets(rows) for bucket, rows in calibration_rows.groupby("bucket")}
+
+
+def rolling_bias_offsets(pool, cutoff, fallback, window_days=WINDOW_DAYS):
+    """Bias offsets at `cutoff`, from outcomes published by then (as rolling_offsets)."""
+    known = pool[
+        (pool["label_ready_utc"] <= cutoff)
+        & (pool["forecast_at_utc"] < cutoff)
+        & (pool["forecast_at_utc"] >= cutoff - pd.Timedelta(days=window_days))
+        & np.isfinite(pool["actual"])
+    ]
+    result = {}
+    for bucket in fallback:
+        rows = known[known["bucket"] == bucket]
+        result[bucket] = _bias_offsets(rows) if len(rows) >= MIN_SCORES else fallback[bucket]
+    return result
+
+
+def apply_bias_offsets(rows, offsets, floor=None):
+    """Shift all three quantiles, then widen the tails, keeping p10 <= p50 <= p90."""
+    shift, lower, upper = (rows["bucket"].map(lambda b, i=i: offsets[b][i]) for i in range(3))
+    p50 = rows["p50"] + shift
+    p10 = np.minimum(rows["p10"] + shift - lower, p50)
+    p90 = np.maximum(rows["p90"] + shift + upper, p50)
+    if floor is not None:
+        p10, p50, p90 = (np.maximum(q, floor) for q in (p10, p50, p90))
+    return rows.assign(p10=p10, p50=p50, p90=p90)
+
+
+def calibrate_bias(pool, rows, fallback, floor=None, window_days=WINDOW_DAYS):
+    """Apply rolling bias offsets cutoff by cutoff. Returns calibrated rows and fallback count."""
+    parts, fallbacks = [], 0
+    for cutoff, group in rows.groupby("forecast_at_utc"):
+        offsets = rolling_bias_offsets(pool, cutoff, fallback, window_days)
+        fallbacks += sum(offsets[b] is fallback[b] for b in offsets)
+        parts.append(apply_bias_offsets(group, offsets, floor))
+    return pd.concat(parts).loc[rows.index], fallbacks
+
+
+DEPLOYED_BANDS = {"price": "adaptive", "carbon": "rolling"}  # Tail method served live per target
+
+
+def median_shift_qualifies(report, source):
+    """Rule fixed before evaluation: shift the served median only if the deployed
+    median is biased (outside 40-60% of outcomes below p50) and the shift brings
+    it inside that range on the test period.
+
+    The full bias-corrected method was also tested against coverage >= 75% and
+    narrower bands than adaptive. It failed coverage (68%): shifting moves p50
+    but measures the same band edges as the rolling version. So only the median
+    shift is deployed, on top of the unchanged deployed band edges.
+    """
+    overall = report[(report["target"] == source) & (report["horizon"] == "all")].set_index("method")
+    deployed = overall.loc[DEPLOYED_BANDS[source], "below_p50_pct"]
+    shifted = overall.loc["bias_corrected", "below_p50_pct"]
+    return bool(not 40 <= deployed <= 60 and 40 <= shifted <= 60)
+
+
+def with_shifted_median(banded, shifted):
+    """Keep one version's band edges and take the other's shifted median, inside the band."""
+    p50 = np.clip(shifted["p50"], banded["p10"], banded["p90"])
+    return banded.assign(p50=p50)
+
+
 def calibrate_adaptive(pool, rows, fallback, floor=None, window_days=WINDOW_DAYS,
                        final_cutoff=None):
     """Delayed-feedback tail calibration, inspired by adaptive conformal inference.
@@ -269,7 +354,7 @@ def run(features, *, model_dir=Path("results/step5"), out_dir=Path("results/step
             raise ValueError("Rebuilt predictions differ from the saved model results.")
         print(f"Rebuilt test predictions vs Step 5 saved: max difference {mismatch:.2e}")
 
-    report, wide, saved_offsets = [], None, {}
+    report, wide, saved_offsets, served_versions = [], None, {}, {}
     for source, table in tables.items():
         floor = FLOORS[source]
         calibration_rows = table[table["split"] == "validation"]
@@ -285,6 +370,9 @@ def run(features, *, model_dir=Path("results/step5"), out_dir=Path("results/step
         versions["adaptive"], states = calibrate_adaptive(
             table, test, fixed, floor, window_days, final_cutoff=export_cutoff)
         states.to_csv(out_dir / f"{source}_adaptive_state.csv", index=False)
+        fixed_bias = fixed_bias_offsets(calibration_rows)
+        versions["bias_corrected"], _ = calibrate_bias(table, test, fixed_bias, floor, window_days)
+        served_versions[source] = versions
         print(f"{source}: rolling used the fixed fallback in {fallbacks} of "
               f"{test['forecast_at_utc'].nunique() * len(fixed)} cutoff-buckets.")
 
@@ -298,6 +386,7 @@ def run(features, *, model_dir=Path("results/step5"), out_dir=Path("results/step
             f"{source}_actual": test["actual"],
             f"{source}_p50": test["p50"],
             **{f"{source}_{m}_{q}": versions[m][q] for m in versions for q in ("p10", "p90")},
+            f"{source}_bias_corrected_p50": versions["bias_corrected"]["p50"],  # The only shifted median
         }
         block = pd.DataFrame(columns)
         if wide is None:
@@ -307,9 +396,11 @@ def run(features, *, model_dir=Path("results/step5"), out_dir=Path("results/step
 
         # Latest rolling offsets, for widening live forecasts in the app.
         latest = rolling_offsets(table, as_of + pd.Timedelta(seconds=1), fixed, window_days)
+        bias_latest = rolling_bias_offsets(table, export_cutoff, fixed_bias, window_days)
         adaptive_latest = states[states.forecast_at_utc == export_cutoff]
         saved_offsets[source] = {
-            "deployment_method": "adaptive_latest" if source == "price" else "rolling_latest",
+            "deployment_method": f"{DEPLOYED_BANDS[source]}_latest",
+            "bias_corrected_latest": {bucket_label(b): _bias_dict(v) for b, v in bias_latest.items()},
             "adaptive_latest": {bucket_label(int(row.bucket)): _offset_dict((row.lower, row.upper, row.n))
                                 for row in adaptive_latest.itertuples()},
             "rolling_latest": {bucket_label(b): _offset_dict(v) for b, v in latest.items()},
@@ -318,6 +409,20 @@ def run(features, *, model_dir=Path("results/step5"), out_dir=Path("results/step
         }
 
     report = pd.DataFrame(report)
+    for source in tables:
+        if median_shift_qualifies(report, source):
+            saved_offsets[source]["median_shift"] = {
+                label: values["shift"] for label, values in saved_offsets[source]["bias_corrected_latest"].items()
+            }
+            # Report what is actually served: deployed band edges plus the shifted median.
+            served = with_shifted_median(served_versions[source][DEPLOYED_BANDS[source]],
+                                         served_versions[source]["bias_corrected"])
+            report = pd.concat([report, pd.DataFrame(
+                [{"target": source, "method": "served", "horizon": "all", **coverage(served)}]
+                + [{"target": source, "method": "served", "horizon": bucket_label(b), **coverage(part)}
+                   for b, part in served.groupby("bucket")])], ignore_index=True)
+        print(f"{source} served: {saved_offsets[source]['deployment_method']} bands"
+              f"{' + median shift' if 'median_shift' in saved_offsets[source] else ''}")
     report.to_csv(out_dir / "coverage.csv", index=False, float_format="%.4f")
     wide.to_csv(out_dir / "calibrated_test_predictions.csv", index=False)
     (out_dir / "offsets.json").write_text(json.dumps({
@@ -325,7 +430,8 @@ def run(features, *, model_dir=Path("results/step5"), out_dir=Path("results/step
         "bucket_hours": BUCKET_HOURS,
         "window_days": window_days,
         "deployment_note": "Frozen offsets from historical outcomes; regenerate to update. Adaptive price results are exploratory and do not guarantee 80% live coverage.",
-        "usage": "p10 -= lower, p90 += upper for the matching horizon bucket; keep p10 <= p50 <= p90.",
+        "usage": "p10 -= lower, p90 += upper for the matching horizon bucket; then, if median_shift "
+                 "is present, p50 += shift clipped inside [p10, p90].",
         **saved_offsets,
     }, indent=2) + "\n")
     plot(report, out_dir / "calibration.png")
@@ -335,6 +441,11 @@ def run(features, *, model_dir=Path("results/step5"), out_dir=Path("results/step
     print(shown.to_string(index=False, float_format=lambda v: f"{v:.2f}"))
     print(f"\nSaved coverage.csv, calibrated_test_predictions.csv, offsets.json and calibration.png to {out_dir}")
     return report
+
+
+def _bias_dict(value):
+    shift, lower, upper, n = value
+    return {"shift": round(shift, 4), "lower": round(lower, 4), "upper": round(upper, 4), "n": int(n)}
 
 
 def _offset_dict(value):
@@ -348,19 +459,20 @@ def plot(report, path):
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
 
-    colours = {"raw": "#9aa0a6", "fixed": "#e8a33d", "rolling": "#2e7d5b", "adaptive": "#4466cc"}
+    colours = {"raw": "#9aa0a6", "fixed": "#e8a33d", "rolling": "#2e7d5b", "adaptive": "#4466cc",
+               "bias_corrected": "#c0392b"}
     names = {"raw": "Step 5 raw", "fixed": "Fixed (validation window)", "rolling": f"Rolling ({WINDOW_DAYS} days)",
-             "adaptive": "Adaptive delayed feedback"}
+             "adaptive": "Adaptive delayed feedback", "bias_corrected": "Bias-corrected rolling"}
     fig, axes = plt.subplots(2, 2, figsize=(12, 8.5))
     for column, source in enumerate(models.TARGETS):
         part = report[report["target"] == source]
         by_horizon = part[part["horizon"] != "all"]
         horizons = list(dict.fromkeys(by_horizon["horizon"]))
         ax = axes[0, column]
-        width = 0.2
+        width = 0.16
         for i, method in enumerate(colours):
             values = by_horizon[by_horizon["method"] == method].set_index("horizon").loc[horizons]
-            ax.bar(np.arange(len(horizons)) + (i - 1.5) * width, values["coverage_80_pct"],
+            ax.bar(np.arange(len(horizons)) + (i - (len(colours) - 1) / 2) * width, values["coverage_80_pct"],
                    width, color=colours[method], label=names[method])
         ax.axhline(80, color="#333", linestyle="--", linewidth=1, label="Target 80%")
         ax.set_xticks(np.arange(len(horizons)), horizons)

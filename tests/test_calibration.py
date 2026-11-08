@@ -132,3 +132,37 @@ class AdaptiveCalibrationTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class BiasCorrectionTests(unittest.TestCase):
+    def test_shift_moves_the_median_to_the_middle_of_the_outcomes(self):
+        rows = long_table(2000, seed=5)
+        rows["actual"] = rows["actual"] + 3.0  # Forecast runs 3 low
+        shift, lower, upper, n = calibration._bias_offsets(rows)
+        self.assertAlmostEqual(shift, 3.0, delta=0.2)
+        out = calibration.apply_bias_offsets(rows, {0: (shift, lower, upper, n)})
+        self.assertAlmostEqual(calibration.coverage(out)["below_p50_pct"], 50, delta=3)
+        self.assertTrue((out["p10"] <= out["p50"]).all() and (out["p50"] <= out["p90"]).all())
+
+    def test_rolling_bias_ignores_outcomes_published_after_the_cutoff(self):
+        cutoff = START + pd.Timedelta(days=10)
+        calm = long_table(300, seed=6, sd=0.5)
+        late = long_table(300, start=START + pd.Timedelta(days=4), actual=100.0, ready_after_hours=24 * 30)
+        offsets = calibration.rolling_bias_offsets(pd.concat([calm, late]), cutoff, {0: (0.0, 0.0, 0.0, 0)})
+        self.assertLess(abs(offsets[0][0]), 1)
+
+    def test_median_shift_rule_only_fixes_a_biased_median(self):
+        def report(deployed_below, shifted_below, target="price", deployed="adaptive"):
+            return pd.DataFrame([
+                {"target": target, "method": deployed, "horizon": "all", "below_p50_pct": deployed_below},
+                {"target": target, "method": "bias_corrected", "horizon": "all", "below_p50_pct": shifted_below},
+            ])
+        self.assertTrue(calibration.median_shift_qualifies(report(23.7, 40.2), "price"))
+        self.assertFalse(calibration.median_shift_qualifies(report(23.7, 35.0), "price"))
+        self.assertFalse(calibration.median_shift_qualifies(report(48.8, 42.6, "carbon", "rolling"), "carbon"))
+
+    def test_served_median_stays_inside_the_band(self):
+        banded = long_table(5)
+        shifted = banded.assign(p50=10.0)
+        out = calibration.with_shifted_median(banded, shifted)
+        self.assertTrue((out["p50"] == banded["p90"]).all())

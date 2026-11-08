@@ -19,36 +19,46 @@ function levelColours(values) {
 export default function ForecastChart({
   slots, metric, unit, title, rec, confirmedUntil, windowStart, windowEnd,
 }) {
-  const times = slots.map((s) => londonTime(s.time))
   const p10 = slots.map((s) => s[`${metric}_p10`])
   const p50 = slots.map((s) => s[`${metric}_p50`])
   const p90 = slots.map((s) => s[`${metric}_p90`])
 
+  // Plotly centres a bar on its x value, so place each half-hour's bar at the
+  // middle of its slot. Bars then span their real time, and the recommended
+  // window's edges (at slot boundaries) fall in the gaps between bars.
+  const middles = slots.map((s) => londonTime(new Date(new Date(s.time).getTime() + 15 * 60 * 1000)))
+  const slotLabels = slots.map((s) => new Date(s.time).toLocaleString('en-GB', {
+    weekday: 'short', hour: '2-digit', minute: '2-digit', timeZone: 'Europe/London',
+  }))
+
   const traces = [
     {
-      x: times, y: p50, type: 'bar', name: 'Most likely',
+      x: middles, y: p50, type: 'bar', name: 'Most likely',
       marker: { color: levelColours(p50) },
-      hovertemplate: `%{x|%a %H:%M}: %{y:.1f} ${unit}<extra></extra>`,
+      customdata: slotLabels,
+      hovertemplate: `%{customdata}: %{y:.1f} ${unit}<extra></extra>`,
     },
     // Invisible top edge of the band...
-    { x: times, y: p90, type: 'scatter', mode: 'lines', line: { width: 0 },
+    { x: middles, y: p90, type: 'scatter', mode: 'lines', line: { width: 0 },
       hoverinfo: 'skip', showlegend: false },
     // ...and the bottom edge, filled up to the top edge = the 80% range
-    { x: times, y: p10, type: 'scatter', mode: 'lines', line: { width: 0 },
+    { x: middles, y: p10, type: 'scatter', mode: 'lines', line: { width: 0 },
       fill: 'tonexty', fillcolor: 'rgba(29, 29, 31, 0.15)',
       name: 'Calibrated forecast band', hoverinfo: 'skip' },
   ]
 
   const shapes = []
-  // Shade the recommended window, once there is a recommendation
+  const outlines = []
+  // Shade the recommended window, once there is a recommendation. The fill sits
+  // behind the bars; the outline is drawn last, above everything, so no bar or
+  // other line can hide part of it.
   for (const block of rec?.blocks ?? (rec ? [{ start: rec.start, end: rec.end }] : [])) {
-    shapes.push({
+    const edges = {
       type: 'rect', xref: 'x', yref: 'paper',
       x0: londonTime(block.start), x1: londonTime(block.end), y0: 0, y1: 1,
-      fillcolor: 'rgba(26, 127, 75, 0.12)',
-      line: { color: '#1a7f4b', width: 1 },
-      layer: 'below',
-    })
+    }
+    shapes.push({ ...edges, fillcolor: 'rgba(26, 127, 75, 0.12)', line: { width: 0 }, layer: 'below' })
+    outlines.push({ ...edges, fillcolor: 'rgba(0, 0, 0, 0)', line: { color: '#1a7f4b', width: 1.5 }, layer: 'above' })
   }
   // Dashed line where confirmed prices end and our forecast begins
   if (confirmedUntil && metric === 'price') {
@@ -73,6 +83,7 @@ export default function ForecastChart({
       text: label, showarrow: false, font: { size: 11, color: '#2457c5' },
     })
   }
+  shapes.push(...outlines) // Last, so the recommended window's outline is always complete
 
   return (
     <section className="chart-card">

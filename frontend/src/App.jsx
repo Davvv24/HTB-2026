@@ -1,6 +1,10 @@
 import { lazy, Suspense, useEffect, useState } from 'react'
 import './App.css'
-import { nextOccurrence, requestJson, savingText } from './request'
+import {
+  choicesByDay, defaultFinish, planWindow, requestJson, savingText, timeChoices,
+} from './request'
+
+const DAY_LABELS = { today: 'Today', tomorrow: 'Tomorrow' }
 import WhyPanel from './components/WhyPanel'
 
 // Charts pull in Plotly (about 1.5 MB gzipped), so they load after the page appears.
@@ -62,8 +66,11 @@ function forecastStatus(forecast) {
 function App() {
   const [view, setView] = useState('plan')
   const [appliance, setAppliance] = useState('washing_machine')
-  const [startAfter, setStartAfter] = useState('')
-  const [finishBy, setFinishBy] = useState('07:00')
+  // Day is 'today' or 'tomorrow'; hour is a UTC ISO time ('' = now / the default)
+  const [startDay, setStartDay] = useState('today')
+  const [startHour, setStartHour] = useState('')
+  const [finishDay, setFinishDay] = useState('')
+  const [finishHour, setFinishHour] = useState('')
   const [carbonWeight, setCarbonWeight] = useState(50)
   const [riskAversion, setRiskAversion] = useState(0.5)
   const [grid, setGrid] = useState(null)
@@ -78,6 +85,37 @@ function App() {
 
   const selectedRisk = RISK_OPTIONS.find((o) => o.value === riskAversion)
   const chart = METRICS[metric]
+
+  // Live data plans from the real time; the historical replay from its issue time
+  const planNow = () => (forecast?.historical_demo ? new Date(forecast.data_as_of) : new Date())
+
+  // Hourly start and finish choices, as far as the forecast reaches
+  const now = planNow()
+  const forecastEnd = forecast?.slots.length
+    ? new Date(new Date(forecast.slots.at(-1).time).getTime() + 30 * 60 * 1000)
+    : new Date(now.getTime() + 48 * 3600 * 1000)
+  // Start: Today offers "Now" plus the hours left; Tomorrow only if the forecast reaches it.
+  // A choice that has passed or no longer fits falls back to the first one that does.
+  const startByDay = choicesByDay(timeChoices(now, new Date(forecastEnd.getTime() - 3600 * 1000)), now)
+  const startDays = startByDay.tomorrow.length ? ['today', 'tomorrow'] : ['today']
+  const startDayValue = startDays.includes(startDay) ? startDay : 'today'
+  const startOptions = startDayValue === 'today'
+    ? [{ value: '', label: 'Now' }, ...startByDay.today]
+    : startByDay.tomorrow
+  const startValue = startOptions.some((o) => o.value === startHour) ? startHour : startOptions[0].value
+  const startAt = startValue ? new Date(startValue) : now
+
+  // Finish: only hours after the start and within the forecast; days with none are hidden.
+  // Default: the next 07:00, else the latest hour on the chosen day.
+  const finishByDay = choicesByDay(timeChoices(startAt, forecastEnd, now), now)
+  const finishDays = ['today', 'tomorrow'].filter((day) => finishByDay[day].length)
+  const usual = defaultFinish([...finishByDay.today, ...finishByDay.tomorrow], startAt)
+  const usualDay = finishByDay.today.some((o) => o.value === usual) ? 'today' : 'tomorrow'
+  const finishDayValue = finishDays.includes(finishDay) ? finishDay : usualDay
+  const finishOptions = finishByDay[finishDayValue] ?? []
+  const finishValue = finishOptions.some((o) => o.value === finishHour) ? finishHour
+    : finishOptions.some((o) => o.value === usual) ? usual
+      : finishOptions.at(-1)?.value ?? ''
 
   // End of the confirmed (published) prices, if any
   const lastPublished = forecast?.slots.filter((s) => s.price_published).at(-1)
@@ -103,10 +141,7 @@ function App() {
     if (!forecast) return
     setLoading(true)
     try {
-      // Live data plans from the real time; the historical replay from its issue time
-      const now = forecast.historical_demo ? new Date(forecast.data_as_of) : new Date()
-      const start = startAfter ? nextOccurrence(startAfter, now) : now
-      const deadline = nextOccurrence(finishBy, start)
+      const { start, deadline } = planWindow(planNow(), startValue, finishValue)
       const data = await requestJson('/api/recommend', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -195,12 +230,36 @@ function App() {
           <div className="row">
             <label className="field">
               Start after
-              <input type="time" value={startAfter} onChange={(e) => setStartAfter(e.target.value)} />
+              <span className="day-time">
+                <select value={startDayValue} aria-label="Start day"
+                  onChange={(e) => { setStartDay(e.target.value); setStartHour('') }}>
+                  {startDays.map((day) => <option key={day} value={day}>{DAY_LABELS[day]}</option>)}
+                </select>
+                <select value={startValue} aria-label="Start time"
+                  onChange={(e) => setStartHour(e.target.value)}>
+                  {startOptions.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+                </select>
+              </span>
             </label>
 
             <label className="field">
               Finish by
-              <input type="time" value={finishBy} onChange={(e) => setFinishBy(e.target.value)} />
+              {finishDays.length === 0 ? (
+                <select disabled aria-label="Finish time">
+                  <option>No time left in the forecast</option>
+                </select>
+              ) : (
+                <span className="day-time">
+                  <select value={finishDayValue} aria-label="Finish day"
+                    onChange={(e) => { setFinishDay(e.target.value); setFinishHour('') }}>
+                    {finishDays.map((day) => <option key={day} value={day}>{DAY_LABELS[day]}</option>)}
+                  </select>
+                  <select value={finishValue} aria-label="Finish time"
+                    onChange={(e) => setFinishHour(e.target.value)}>
+                    {finishOptions.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+                  </select>
+                </span>
+              )}
             </label>
           </div>
 
@@ -313,6 +372,8 @@ function App() {
                 title={chart.title}
                 rec={rec}
                 confirmedUntil={confirmedUntil}
+                windowStart={startAt.toISOString()}
+                windowEnd={finishValue || null}
               />
             </Suspense>
           ) : (

@@ -3,9 +3,10 @@ import './App.css'
 import {
   choicesByDay, defaultFinish, planWindow, requestJson, savingText, timeChoices,
 } from './request'
+import GridHeartbeat from './components/GridHeartbeat'
+import WhyPanel from './components/WhyPanel'
 
 const DAY_LABELS = { today: 'Today', tomorrow: 'Tomorrow' }
-import WhyPanel from './components/WhyPanel'
 
 // Charts pull in Plotly (about 1.5 MB gzipped), so they load after the page appears.
 const ForecastChart = lazy(() => import('./components/ForecastChart'))
@@ -16,19 +17,19 @@ const REFRESH_MS = 5 * 60 * 1000 // Re-check live data every 5 minutes
 
 const RISK_OPTIONS = [
   {
-    label: 'Max saving',
+    label: 'Best on average',
     value: 0.2,
-    hint: 'Aims for the biggest saving, even if the price is less certain.',
+    hint: 'Picks the best slot on average, even if the forecast for it is less certain.',
   },
   {
     label: 'Balanced',
     value: 0.5,
-    hint: 'A good saving with a reasonable level of certainty.',
+    hint: 'A good result with a reasonable level of certainty.',
   },
   {
     label: 'Safe bet',
     value: 0.8,
-    hint: 'A slightly smaller saving you can be more confident in.',
+    hint: 'A slightly smaller benefit you can be more confident in.',
   },
 ]
 
@@ -170,12 +171,7 @@ function App() {
     <main className="app">
       <h1>When should I run it?</h1>
 
-      <p className="grid-status">
-        {grid
-          ? `GB grid carbon intensity at ${ukTime(grid.data_as_of)}: ${grid.carbon_intensity} gCO₂/kWh`
-          : 'Loading grid data…'}
-        {grid?.cached && <span className="badge">Saved reading</span>}
-      </p>
+      <GridHeartbeat grid={grid} />
 
       {forecast && (
         <p className="grid-status">

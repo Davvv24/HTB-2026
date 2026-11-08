@@ -280,3 +280,56 @@
 /* Day and hour dropdowns side by side */
 .day-time { display: flex; gap: 8px; min-width: 0; }
 .day-time select { flex: 1 1 0; min-width: 0; }
+
+/* Grid heartbeat */
+.heartbeat {
+  display: grid;
+  gap: 8px;
+  padding: 16px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+}
+.heartbeat-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+
+.pulse {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--green);
+  animation: pulse 1.6s ease-in-out infinite;
+}
+@keyframes pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.4; transform: scale(1.4); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .pulse { animation: none; }
+}
+
+.mix-bar {
+  display: flex;
+  height: 14px;
+  border-radius: 999px;
+  overflow: hidden;
+  background: var(--bg);
+}
+
+.mix-legend {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+.swatch {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+  margin-right: 6px;
+  vertical-align: middle;
+}

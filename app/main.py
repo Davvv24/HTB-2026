@@ -181,7 +181,7 @@ def local_date(series):
             .dt.tz_convert(config.UK_TIMEZONE).dt.strftime("%Y-%m-%d"))
 
 
-def household_summary(key, daily):
+def household_summary(key, daily, avoidable_gbp=None):
     """Goal, streak and points from a table of date, saving_gbp, saving_kg (one row per day)."""
     recent = daily.sort_values("date").tail(DAYS_SHOWN)
     saved_money = (recent.saving_gbp > 0).tolist()
@@ -223,6 +223,7 @@ def household_summary(key, daily):
             {"date": date, "saving_gbp": round(float(gbp), 2)}
             for date, gbp in zip(recent.date, recent.saving_gbp)
         ],
+        "avoidable_gbp": None if avoidable_gbp is None else round(avoidable_gbp, 2),
     }
 
 
@@ -236,8 +237,14 @@ def load_households():
     battery = battery.rename(columns={"pnl_gbp": "saving_gbp", "saving_co2_kg": "saving_kg"})
 
     columns = ["date", "saving_gbp", "saving_kg"]
+    # Invisible cost: what perfect timing would have saved over the same days
+    perfect = savings[savings.strategy == "perfect_foresight"].copy()
+    perfect["date"] = local_date(perfect.forecast_at_utc)
+    recent_days = student.sort_values("date").date.tail(DAYS_SHOWN)
+    avoidable = float(perfect[perfect.date.isin(recent_days)].saving_gbp.sum())
+
     return [
-        household_summary("student_flat", student[columns]),
+        household_summary("student_flat", student[columns], avoidable_gbp=avoidable),
         household_summary("battery_home", battery[columns]),
     ]
 

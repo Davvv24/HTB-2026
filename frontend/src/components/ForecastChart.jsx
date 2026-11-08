@@ -33,7 +33,8 @@ export default function ForecastChart({
 
   const traces = [
     {
-      x: middles, y: p50, type: 'bar', name: 'Most likely',
+      // Bars have three colours, so they get their own legend entries below
+      x: middles, y: p50, type: 'bar', name: 'Most likely', showlegend: false,
       marker: { color: levelColours(p50) },
       customdata: slotLabels,
       hovertemplate: `%{customdata}: %{y:.1f} ${unit}<extra></extra>`,
@@ -44,8 +45,23 @@ export default function ForecastChart({
     // ...and the bottom edge, filled up to the top edge = the 80% range
     { x: middles, y: p10, type: 'scatter', mode: 'lines', line: { width: 0 },
       fill: 'tonexty', fillcolor: 'rgba(29, 29, 31, 0.15)',
-      name: 'Calibrated forecast band', hoverinfo: 'skip' },
+      name: 'Likely range', hoverinfo: 'skip' },
   ]
+
+  // Legend-only entries (no data) explaining each colour on the chart
+  const words = metric === 'carbon' ? ['Cleanest', 'Dirtiest'] : ['Cheapest', 'Priciest']
+  const legendSwatch = (name, color, line) => ({
+    x: [null], y: [null], type: 'scatter', mode: 'markers', name, hoverinfo: 'skip',
+    marker: { symbol: 'square', size: 12, color, line: line ?? { width: 0 } },
+  })
+  traces.push(
+    legendSwatch(`${words[0]} third`, '#1a7f4b'),
+    legendSwatch('Middle third', '#b7791f'),
+    legendSwatch(`${words[1]} third`, '#c0392b'),
+  )
+  if (rec) {
+    traces.push(legendSwatch('Recommended time', 'rgba(26, 127, 75, 0.12)', { color: '#1a7f4b', width: 1.5 }))
+  }
 
   const shapes = []
   const outlines = []
@@ -60,6 +76,7 @@ export default function ForecastChart({
     shapes.push({ ...edges, fillcolor: 'rgba(26, 127, 75, 0.12)', line: { width: 0 }, layer: 'below' })
     outlines.push({ ...edges, fillcolor: 'rgba(0, 0, 0, 0)', line: { color: '#1a7f4b', width: 1.5 }, layer: 'above' })
   }
+  const annotations = []
   // Dashed line where confirmed prices end and our forecast begins
   if (confirmedUntil && metric === 'price') {
     shapes.push({
@@ -70,7 +87,6 @@ export default function ForecastChart({
   }
 
   // Solid lines at the start and finish the user has chosen
-  const annotations = []
   for (const [when, label] of [[windowStart, 'Start'], [windowEnd, 'Finish']]) {
     if (!when) continue
     shapes.push({

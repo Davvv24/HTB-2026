@@ -21,7 +21,7 @@ DATASET_PATH = config.DATA_DIR / "dataset.parquet"
 MIX_SOURCES = ["wind", "gas", "nuclear", "solar", "biomass", "hydro", "imports", "coal", "other"]
 STEP8_DIR = config.ROOT_DIR / "results/step8"
 STRATEGY_LABELS = {  # Display order and names
-    "run_now": "Start straight away",
+    "run_now": "Start at 15:00",
     "fixed_overnight": "Fixed overnight (midnight)",
     "model": "Our model",
     "perfect_foresight": "Perfect foresight (upper bound)",

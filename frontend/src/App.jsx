@@ -318,7 +318,7 @@ function App() {
               </p>
               <div className="compare">
                 <div>
-                  <p className="compare-label">Start straight away ({ukTime(rec.run_now.start)})</p>
+                  <p className="compare-label">Starting at {ukTime(rec.run_now.start)}</p>
                   <p className="compare-value">£{rec.run_now.cost_gbp.toFixed(2)}</p>
                   <p className="compare-sub">{rec.run_now.co2_kg.toFixed(2)} kg CO₂</p>
                 </div>
@@ -330,7 +330,7 @@ function App() {
               </div>
               <details className="why">
                 <summary>Why this time?</summary>
-                <WhyPanel drivers={rec.model_drivers} why={rec.why} />
+                <WhyPanel drivers={rec.model_drivers} why={rec.why} runNowAt={ukTime(rec.run_now.start)} />
                 {rec.interpretation && <p className="hint">{rec.interpretation}</p>}
               </details>
             </section>

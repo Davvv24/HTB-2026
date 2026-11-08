@@ -52,7 +52,7 @@ export default function Receipts() {
         <h2>{Math.round(data.pct_of_perfect_foresight)}% of the best possible saving</h2>
         <p>
           Over {data.days} days, our model saved £{model.saving_gbp.toFixed(2)} compared with
-          starting straight away. Even with perfect knowledge of future prices, the most
+          starting at 15:00 each day. Even with perfect knowledge of future prices, the most
           anyone could have saved was £{perfect.saving_gbp.toFixed(2)}.
         </p>
         <p className="for-line">
@@ -65,7 +65,7 @@ export default function Receipts() {
         <Plot
           data={traces}
           layout={{
-            title: { text: 'Running total saved vs starting straight away', x: 0, font: { size: 16 } },
+            title: { text: 'Running total saved vs starting at 15:00', x: 0, font: { size: 16 } },
             autosize: true,
             margin: { l: 48, r: 16, t: 40, b: 40 },
             legend: { orientation: 'h', y: -0.2 },

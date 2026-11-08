@@ -1,6 +1,8 @@
 import pandas as pd
 import json
 from fastapi import FastAPI, HTTPException
+from fastapi.responses import HTMLResponse
+from fastapi.staticfiles import StaticFiles
 from pydantic import AwareDatetime, BaseModel, Field, model_validator
 
 import config
@@ -347,3 +349,20 @@ def recommend(req: RecommendRequest):
     result.update(snapshot.meta())
     return result
 
+
+
+# --- The built React app ---------------------------------------------------------
+# After `npm run build`, the API also serves the frontend, so the whole app runs as
+# one process on one port (see start.sh / start.ps1). Mounted last: /api/* routes
+# above always take priority. During development, `npm run dev` on port 5173 still
+# works as before and forwards /api here.
+FRONTEND_DIST = config.ROOT_DIR / "frontend" / "dist"
+
+if (FRONTEND_DIST / "index.html").is_file():
+    app.mount("/", StaticFiles(directory=FRONTEND_DIST, html=True), name="frontend")
+else:
+    @app.get("/", response_class=HTMLResponse, include_in_schema=False)
+    def frontend_not_built():
+        return ("<p>The API is running, but the web app hasn't been built yet.</p>"
+                "<p>Run <code>./start.sh</code> (or <code>start.ps1</code> on Windows), or "
+                "<code>npm run build</code> in <code>frontend/</code>, then restart.</p>")

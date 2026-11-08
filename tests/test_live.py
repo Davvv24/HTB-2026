@@ -3,7 +3,9 @@
 import json
 import os
 import tempfile
+import time
 import unittest
+from datetime import timedelta
 from pathlib import Path
 from unittest import mock
 
@@ -129,6 +131,30 @@ class ForecastTests(LiveTestCase):
             self.assertEqual(fetch_agile.call_count, 1)  # The request did not wait for a fetch
         refresh_later.assert_called_once()
         self.assertEqual(stale.last_updated, first.last_updated)
+
+    def test_server_loads_live_data_before_opening(self):
+        sentinel_forecast, sentinel_grid = object(), {"carbon_intensity": 200}
+        with mock.patch.object(live, "_serving", False), \
+                mock.patch.object(live, "_refresh_forecast", return_value=sentinel_forecast), \
+                mock.patch.object(live, "_refresh_grid", return_value=sentinel_grid), \
+                mock.patch.object(live, "_refresh_loop"):
+            live.start_background_refresh(startup_wait=timedelta(seconds=2))
+            self.assertTrue(live._serving)
+            self.assertIs(live._memory["forecast"][1], sentinel_forecast)
+            self.assertIs(live._memory["grid"][1], sentinel_grid)
+
+    def test_a_slow_provider_cannot_hold_up_startup(self):
+        def slow(now):
+            time.sleep(1.0)
+            return None
+        with mock.patch.object(live, "_serving", False), \
+                mock.patch.object(live, "_refresh_forecast", side_effect=slow), \
+                mock.patch.object(live, "_refresh_grid", return_value=None), \
+                mock.patch.object(live, "_refresh_loop"):
+            started = time.monotonic()
+            live.start_background_refresh(startup_wait=timedelta(seconds=0.1))
+            self.assertLess(time.monotonic() - started, 0.6)
+            self.assertTrue(live._serving)
 
     def test_background_refresh_does_not_start_when_live_data_is_off(self):
         with mock.patch.dict(os.environ, {"GRID_ADVISOR_LIVE": "0"}), \

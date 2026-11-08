@@ -106,8 +106,8 @@ export default function Savings() {
         <section className="rec-card">
           <h3>The invisible cost this month: £{h.avoidable_gbp.toFixed(2)}</h3>
           <p>
-            Starting everything at 3pm each day, the moment it was ready, would have cost
-            £{h.avoidable_gbp.toFixed(2)} more over these {h.days} days than the best times before 7am
+            Starting everything at 15:00 each day, the moment it was ready, would have cost
+            £{h.avoidable_gbp.toFixed(2)} more over these {h.days} days than the best times before 07:00
             the next morning. You'd never see it on a bill.
           </p>
           <div

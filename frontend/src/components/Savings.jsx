@@ -39,6 +39,9 @@ export default function Savings() {
   const h = households.find((x) => x.key === selected) ?? households[0]
   const first = h.daily[0]?.date
   const last = h.daily.at(-1)?.date
+  const avoidedPct = h.avoidable_gbp > 0
+    ? Math.round(Math.min(h.saved_gbp / h.avoidable_gbp, 1) * 100)
+    : null
 
   return (
     <div className="savings">
@@ -98,6 +101,31 @@ export default function Savings() {
           <p className="stat-label">CO₂ saved</p>
         </div>
       </section>
+
+      {avoidedPct !== null && (
+        <section className="rec-card">
+          <h3>The invisible cost this month: £{h.avoidable_gbp.toFixed(2)}</h3>
+          <p>
+            Running everything as soon as you could would have cost £{h.avoidable_gbp.toFixed(2)} more
+            than the best possible times. You'd never see it on a bill.
+          </p>
+          <div
+            className="progress"
+            role="progressbar"
+            aria-valuenow={avoidedPct}
+            aria-valuemin={0}
+            aria-valuemax={100}
+            aria-label="Share of the invisible cost avoided"
+          >
+            <div className="progress-fill" style={{ width: `${avoidedPct}%` }} />
+          </div>
+          <p>
+            <strong>
+              By following the app, you avoided £{h.saved_gbp.toFixed(2)} of it ({avoidedPct}%).
+            </strong>
+          </p>
+        </section>
+      )}
 
       <section className="chart-card">
         <Plot

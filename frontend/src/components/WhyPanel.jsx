@@ -7,14 +7,15 @@ const SOURCES = [
 // Technical model terms that don't mean anything to a household user
 const HIDDEN = ['Model reference value', 'Non-negative carbon adjustment', 'Calibration adjustment']
 
-export default function WhyPanel({ drivers, why }) {
+export default function WhyPanel({ drivers, why, runNowAt }) {
+  const startingAt = runNowAt ? `starting at ${runNowAt}` : 'starting at the earliest time'
   if (!drivers) return why ? <p>{why}</p> : null
 
   return (
     <div className="why-panel">
       {why && <p>{why}</p>}
       <p className="hint">
-        Compared with starting straight away, these parts of our forecast make your slot
+        Compared with {startingAt}, these parts of our forecast make your slot
         cheaper or greener:
       </p>
 
@@ -36,7 +37,7 @@ export default function WhyPanel({ drivers, why }) {
             <div key={key}>
               <h4>{title}</h4>
               <p className="hint">
-                Starting straight away uses Octopus's confirmed prices, but this time uses our
+                {startingAt[0].toUpperCase() + startingAt.slice(1)} uses Octopus's confirmed prices, but this time uses our
                 forecast, so the cost difference can't be split into forecast factors.
               </p>
             </div>

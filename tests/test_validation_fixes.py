@@ -1,7 +1,9 @@
 import json
+import os
 from pathlib import Path
 import tempfile
 import unittest
+from unittest import mock
 
 import pandas as pd
 from pydantic import ValidationError
@@ -39,6 +41,7 @@ class ValidationFixTests(unittest.TestCase):
             with self.subTest(changes=changes), self.assertRaises(ValidationError):
                 RecommendRequest(**{**valid, **changes})
 
+    @mock.patch.dict(os.environ, {'GRID_ADVISOR_LIVE': '0'})  # Historical replay only
     def test_api_respects_ev_energy(self):
         result = recommend(RecommendRequest(
             appliance='ev', earliest_start='2026-11-03T15:00:00Z',

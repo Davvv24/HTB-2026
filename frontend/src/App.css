@@ -23,6 +23,11 @@
 @media (min-width: 640px) {
   .row { grid-template-columns: 1fr 1fr; }
 }
+/* Next to the chart the panel is only 360px wide, so the two time fields stack */
+@media (min-width: 900px) {
+  .row { grid-template-columns: 1fr; gap: 16px; }
+}
+.controls, .row > *, .field { min-width: 0; } /* Never wider than the panel */
 
 .field {
   display: grid;
@@ -261,3 +266,17 @@
 }
 .stat-value { font-size: 1.75rem; font-weight: 700; }
 .stat-label { color: var(--muted); font-size: 0.9rem; }
+/* Small label for cached or saved data (Step 11) */
+.badge {
+  display: inline-block;
+  margin-left: 8px;
+  padding: 1px 8px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  font-size: 0.8em;
+  color: var(--muted);
+}
+
+/* Day and hour dropdowns side by side */
+.day-time { display: flex; gap: 8px; min-width: 0; }
+.day-time select { flex: 1 1 0; min-width: 0; }

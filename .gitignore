@@ -5,3 +5,4 @@ data/*.parquet
 data/*_sanity.png
 !data/dataset.parquet
 !data/features.parquet
+data/live/

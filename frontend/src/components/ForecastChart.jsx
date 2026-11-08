@@ -16,7 +16,9 @@ function levelColours(values) {
   return values.map((v) => (v <= low ? '#1a7f4b' : v >= high ? '#c0392b' : '#b7791f'))
 }
 
-export default function ForecastChart({ slots, metric, unit, title, rec, confirmedUntil }) {
+export default function ForecastChart({
+  slots, metric, unit, title, rec, confirmedUntil, windowStart, windowEnd,
+}) {
   const times = slots.map((s) => londonTime(s.time))
   const p10 = slots.map((s) => s[`${metric}_p10`])
   const p50 = slots.map((s) => s[`${metric}_p50`])
@@ -57,6 +59,21 @@ export default function ForecastChart({ slots, metric, unit, title, rec, confirm
     })
   }
 
+  // Solid lines at the start and finish the user has chosen
+  const annotations = []
+  for (const [when, label] of [[windowStart, 'Start'], [windowEnd, 'Finish']]) {
+    if (!when) continue
+    shapes.push({
+      type: 'line', xref: 'x', yref: 'paper',
+      x0: londonTime(when), x1: londonTime(when), y0: 0, y1: 1,
+      line: { color: '#2457c5', width: 2 },
+    })
+    annotations.push({
+      x: londonTime(when), y: 1, xref: 'x', yref: 'paper', yanchor: 'bottom',
+      text: label, showarrow: false, font: { size: 11, color: '#2457c5' },
+    })
+  }
+
   return (
     <section className="chart-card">
       <Plot
@@ -73,6 +90,7 @@ export default function ForecastChart({ slots, metric, unit, title, rec, confirm
           plot_bgcolor: 'rgba(0,0,0,0)',
           font: { family: 'system-ui, -apple-system, Segoe UI, Roboto, sans-serif', color: '#1d1d1f' },
           shapes,
+          annotations,
         }}
         config={{ displayModeBar: false, responsive: true }}
         style={{ width: '100%', height: '300px' }}

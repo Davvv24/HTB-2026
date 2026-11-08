@@ -4,7 +4,7 @@ from fastapi import FastAPI, HTTPException
 from pydantic import AwareDatetime, BaseModel, Field, model_validator
 
 import config
-from src import explain, models
+from src import explain, live, models
 from src.optimiser import (
     InfeasibleError, get_appliance, plan_appliance, plan_ev, validate_forecast,
 )
@@ -113,6 +113,14 @@ def load_grid_snapshot(at):
             if pd.notna(row[f"gb_{source}_pct"])
         },
     }
+
+
+def active_forecast():
+    """Today's live forecast when available (Step 11), otherwise the historical replay."""
+    snapshot = live.current_forecast()
+    if snapshot is None:
+        snapshot = live.ForecastSnapshot(FORECAST, ISSUED_AT, ISSUED_AT, "historical_demo", cached=True)
+    return snapshot
 
 
 try:
@@ -242,6 +250,8 @@ except Exception as error:
 
 
 app = FastAPI()
+# Keep live data warm in the background so requests never wait on a provider (Step 11).
+app.router.add_event_handler("startup", live.start_background_refresh)
 
 @app.get("/api/households")
 def households():
@@ -262,6 +272,9 @@ def health():
 
 @app.get("/api/grid")
 def grid():
+    current = live.current_grid()
+    if current is not None:
+        return current
     if GRID is None:
         raise HTTPException(status_code=503, detail="Grid data unavailable")
     return GRID
@@ -269,16 +282,16 @@ def grid():
 
 @app.get("/api/forecast")
 def forecast():
+    snapshot = active_forecast()
     slots = [
         {
             "time": iso(t),
             **{col: float(row[col]) for col in VALUE_COLUMNS},
             "price_published": bool(row["price_published"]),
         }
-        for t, row in FORECAST.iterrows()
+        for t, row in snapshot.table.iterrows()
     ]
-    return {"data_as_of": iso(ISSUED_AT), "cached": True,
-            "historical_demo": True, "slots": slots}
+    return {**snapshot.meta(), "slots": slots}
 
 
 class RecommendRequest(BaseModel):
@@ -299,13 +312,15 @@ class RecommendRequest(BaseModel):
 @app.post("/api/recommend")
 def recommend(req: RecommendRequest):
     options = dict(carbon_weight=req.carbon_weight, risk_aversion=req.risk_aversion)
+    snapshot = active_forecast()
+    table = snapshot.table
 
     try:
         if req.appliance == "ev":
-            plan = plan_ev(FORECAST, DEFAULT_EV_KWH if req.ev_kwh_needed is None else req.ev_kwh_needed,
+            plan = plan_ev(table, DEFAULT_EV_KWH if req.ev_kwh_needed is None else req.ev_kwh_needed,
                            req.earliest_start, req.deadline, **options)
         elif req.appliance in config.APPLIANCES:
-            plan = plan_appliance(FORECAST, get_appliance(req.appliance),
+            plan = plan_appliance(table, get_appliance(req.appliance),
                                   req.earliest_start, req.deadline, **options)
         else:
             raise HTTPException(status_code=400, detail=f"Unknown appliance: {req.appliance}")
@@ -314,12 +329,14 @@ def recommend(req: RecommendRequest):
 
     result = plan.to_dict()
     try:
-        if CONTRIBUTIONS is None:
-            raise ValueError("No model contributions loaded")
-        result.update(explain.explain_recommendation(plan, FORECAST, CONTRIBUTIONS))
+        # Contributions must come from the same forecast: the replay's, or the live model's.
+        contributions = CONTRIBUTIONS if snapshot.source == "historical_demo" else snapshot.contributions
+        if contributions is None:
+            raise ValueError("No model contributions for this forecast")
+        result.update(explain.explain_recommendation(plan, table, contributions))
     except (ValueError, KeyError):
         result["why"] = explain.explain_plan(plan)  # Simpler sentence as a fallback
 
-    result.update(data_as_of=iso(ISSUED_AT), cached=True, historical_demo=True)
+    result.update(snapshot.meta())
     return result
 

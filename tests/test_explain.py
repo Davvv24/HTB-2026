@@ -76,6 +76,34 @@ class ExplanationTests(unittest.TestCase):
         self.assertEqual(result["model_drivers"]["price"]["status"], "published_prices")
         self.assertEqual(result["model_drivers"]["price"]["drivers"], [])
 
+    def test_forecast_plan_compared_with_confirmed_run_now_is_partly_published(self):
+        # Running now (slot 0) has a confirmed price; the cheaper slot 1 is a forecast.
+        table = forecast()
+        table["price_published"] = [True, False, False, False]
+        heater = optimiser.Appliance("Test", 2.0, 1)
+        plan = optimiser.plan_appliance(table, heater, START, START + pd.Timedelta(hours=2))
+        self.assertTrue(plan.uses_forecast)
+        result = explain.explain_recommendation(plan, table, contributions(table))
+        self.assertEqual(result["model_drivers"]["price"]["status"], "partly_published")
+        self.assertEqual(result["model_drivers"]["carbon"]["status"], "explained")
+        # With no price factor, the sentence names the main carbon factor instead.
+        self.assertIn("to the model's carbon comparison", result["why"])
+
+    def test_confirmed_recommendation_is_published_even_if_run_now_is_forecast(self):
+        table = forecast()
+        table["price_published"] = [False, True, False, False]
+        heater = optimiser.Appliance("Test", 2.0, 1)
+        plan = optimiser.plan_appliance(table, heater, START, START + pd.Timedelta(hours=2))
+        self.assertFalse(plan.uses_forecast)
+        result = explain.explain_recommendation(plan, table, contributions(table))
+        self.assertEqual(result["model_drivers"]["price"]["status"], "published_prices")
+
+    def test_calibration_adjustment_is_grouped_and_never_named_in_the_sentence(self):
+        self.assertEqual(explain.feature_group("calibration_shift"), "Calibration adjustment")
+        drivers = [{"factor": "Calibration adjustment", "contribution": -1.0},
+                   {"factor": "Wind forecasts", "contribution": -0.2}]
+        self.assertEqual([d["factor"] for d in explain._readable(drivers)], ["Wind forecasts"])
+
     def test_different_model_predictions_are_labelled(self):
         table = forecast()
         plan = optimiser.plan_ev(table, 5, START, START + pd.Timedelta(hours=2))

@@ -7,6 +7,7 @@ import unittest
 from pathlib import Path
 from unittest import mock
 
+import numpy as np
 import pandas as pd
 
 from src import data, live
@@ -236,10 +237,30 @@ class PredictTableTests(unittest.TestCase):
         first = self.offsets["price"]["adaptive_latest"]["0-12h"]
         expected_p90 = max(raw[0, 2] + first["upper"], raw[0, 1])
         self.assertAlmostEqual(self.table["price_p90"].iloc[0], expected_p90, places=6)
-        self.assertAlmostEqual(self.table["price_p50"].iloc[0], raw[0, 1], places=6)
         last = self.offsets["price"]["adaptive_latest"]["36-48h"]
         self.assertAlmostEqual(self.table["price_p10"].iloc[-1],
                                min(raw[-1, 0] - last["lower"], raw[-1, 1]), places=6)
+
+    def test_shifts_a_biased_price_median_inside_the_band(self):
+        raw = live.models.predict_quantiles(live.models.load_models(live.MODEL_DIR, "price"), self.rows)
+        shift = self.offsets["price"]["median_shift"]["0-12h"]
+        self.assertGreater(shift, 0)  # The price model's median runs low
+        row = self.table.iloc[0]
+        expected = min(max(raw[0, 1] + shift, row["price_p10"]), row["price_p90"])
+        self.assertAlmostEqual(row["price_p50"], expected, places=6)
+        self.assertTrue((self.table["price_p10"] <= self.table["price_p50"]).all())
+        self.assertTrue((self.table["price_p50"] <= self.table["price_p90"]).all())
+        # Carbon's median was already unbiased, so it is served unshifted.
+        self.assertNotIn("median_shift", self.offsets["carbon"])
+
+    def test_explanations_add_up_to_the_shifted_median(self):
+        contributions = live.reconcile_contributions(
+            live.explain.model_explanations(self.rows, live.MODEL_DIR), self.table)
+        price = contributions["price"]
+        self.assertIn("calibration_shift", price)
+        np.testing.assert_allclose(price.drop(columns="prediction").sum(axis=1), price["prediction"])
+        np.testing.assert_allclose(price["prediction"].to_numpy(), self.table["price_p50"].to_numpy())
+        self.assertNotIn("calibration_shift", contributions["carbon"])
 
 
 class ModelForecastTests(LiveTestCase):

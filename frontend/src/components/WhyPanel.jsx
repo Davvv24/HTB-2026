@@ -5,7 +5,7 @@ const SOURCES = [
 ]
 
 // Technical model terms that don't mean anything to a household user
-const HIDDEN = ['Model reference value', 'Non-negative carbon adjustment']
+const HIDDEN = ['Model reference value', 'Non-negative carbon adjustment', 'Calibration adjustment']
 
 export default function WhyPanel({ drivers, why }) {
   if (!drivers) return why ? <p>{why}</p> : null
@@ -27,6 +27,18 @@ export default function WhyPanel({ drivers, why }) {
             <div key={key}>
               <h4>{title}</h4>
               <p className="hint">These prices are already published, so there's nothing to forecast.</p>
+            </div>
+          )
+        }
+
+        if (detail.status === 'partly_published') {
+          return (
+            <div key={key}>
+              <h4>{title}</h4>
+              <p className="hint">
+                Starting straight away uses Octopus's confirmed prices, but this time uses our
+                forecast, so the cost difference can't be split into forecast factors.
+              </p>
             </div>
           )
         }

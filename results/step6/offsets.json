@@ -3,9 +3,35 @@
   "bucket_hours": 12,
   "window_days": 28,
   "deployment_note": "Frozen offsets from historical outcomes; regenerate to update. Adaptive price results are exploratory and do not guarantee 80% live coverage.",
-  "usage": "p10 -= lower, p90 += upper for the matching horizon bucket; keep p10 <= p50 <= p90.",
+  "usage": "p10 -= lower, p90 += upper for the matching horizon bucket; then, if median_shift is present, p50 += shift clipped inside [p10, p90].",
   "price": {
     "deployment_method": "adaptive_latest",
+    "bias_corrected_latest": {
+      "0-12h": {
+        "shift": 6.7252,
+        "lower": 10.0853,
+        "upper": 4.6416,
+        "n": 624
+      },
+      "12-24h": {
+        "shift": 8.144,
+        "lower": 13.7611,
+        "upper": -0.0314,
+        "n": 624
+      },
+      "24-36h": {
+        "shift": 8.6716,
+        "lower": 9.2745,
+        "upper": 8.2658,
+        "n": 624
+      },
+      "36-48h": {
+        "shift": 10.312,
+        "lower": 12.7341,
+        "upper": 4.3343,
+        "n": 624
+      }
+    },
     "adaptive_latest": {
       "0-12h": {
         "lower": 0.3767,
@@ -72,10 +98,42 @@
         "n": 672
       }
     },
-    "as_of_utc": "2026-11-05 15:00:00+00:00"
+    "as_of_utc": "2026-11-05 15:00:00+00:00",
+    "median_shift": {
+      "0-12h": 6.7252,
+      "12-24h": 8.144,
+      "24-36h": 8.6716,
+      "36-48h": 10.312
+    }
   },
   "carbon": {
     "deployment_method": "rolling_latest",
+    "bias_corrected_latest": {
+      "0-12h": {
+        "shift": 2.835,
+        "lower": -0.7324,
+        "upper": 5.4957,
+        "n": 624
+      },
+      "12-24h": {
+        "shift": 1.8722,
+        "lower": 4.0617,
+        "upper": 9.1302,
+        "n": 624
+      },
+      "24-36h": {
+        "shift": 6.1477,
+        "lower": -0.957,
+        "upper": 3.5693,
+        "n": 624
+      },
+      "36-48h": {
+        "shift": 8.411,
+        "lower": 5.8382,
+        "upper": 1.5213,
+        "n": 624
+      }
+    },
     "adaptive_latest": {
       "0-12h": {
         "lower": -13.6814,
